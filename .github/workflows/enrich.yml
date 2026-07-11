@@ -1,0 +1,101 @@
+name: enrich-and-deploy
+
+on:
+  schedule:
+    # Weekly deep enrichment (macro-commit analysis is slow).
+    - cron: "0 8 * * 0"
+  workflow_dispatch:
+    inputs:
+      batch_size:
+        description: "Repos per backfill batch"
+        required: false
+        default: "15"
+      macro_timeout_secs:
+        description: "Per-step timeout for exemplar macro analysis"
+        required: false
+        default: "900"
+      max_rounds:
+        description: "Max backfill watchdog rounds (~200 pending repos needs hundreds)"
+        required: false
+        default: "500"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: rerust-enrich
+  cancel-in-progress: false
+
+jobs:
+  enrich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cache scan database
+        uses: actions/cache@v4
+        with:
+          path: rerust.db
+          key: rerust-db-${{ github.run_id }}
+          restore-keys: |
+            rerust-db-
+
+      - name: Build
+        run: cargo build --release
+
+      # backfill-history measures unsafe usage by default; install geiger up front.
+      - name: Install cargo-geiger
+        run: cargo install cargo-geiger --locked
+
+      - name: Light discovery scan (no per-repo history)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./target/release/rerust scan \
+            --db rerust.db \
+            --repo-pages 3 \
+            --issue-pages 3 \
+            --max-candidates 500 \
+            --no-analyze-history
+
+      # Parallel scan-exemplars (skips history_status=ok) + batched backfill loop.
+      - name: Enrichment watchdog (exemplars + backfill)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RERUST_BATCH_SIZE: ${{ github.event.inputs.batch_size || '15' }}
+          RERUST_MACRO_TIMEOUT: ${{ github.event.inputs.macro_timeout_secs || '900' }}
+          RERUST_MAX_ROUNDS: ${{ github.event.inputs.max_rounds || '500' }}
+          RERUST_WATCHDOG_FOREGROUND: "1"
+        run: |
+          chmod +x scripts/backfill-watch.sh
+          ./scripts/backfill-watch.sh --foreground || true
+
+      - name: Reclassify and build site
+        run: |
+          ./target/release/rerust reclassify --db rerust.db
+          ./target/release/rerust build-site --db rerust.db --out docs
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: enrich
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

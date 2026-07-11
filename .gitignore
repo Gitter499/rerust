@@ -1,0 +1,16 @@
+/target
+**/*.rs.bk
+*.pdb
+
+# Editor / tooling
+.cursor/
+**/__pycache__/
+
+# Local database produced by scans
+rerust.db
+rerust.db-*
+rerust.db.bak
+*.backfill.lock
+
+# Local environment
+.env

@@ -1,0 +1,96 @@
+name: scan-and-deploy
+
+on:
+  schedule:
+    # Daily at 06:00 UTC.
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      repo_pages:
+        description: "Pages (x100) per repository search query"
+        required: false
+        default: "3"
+      issue_pages:
+        description: "Pages (x100) per issue/PR search query"
+        required: false
+        default: "3"
+      measure_unsafe:
+        description: "Measure unsafe-Rust usage with cargo-geiger (slow; manual runs only)"
+        type: boolean
+        required: false
+        default: false
+
+# Allow the workflow to publish to GitHub Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two scans concurrently; let a newer run supersede an in-flight one.
+concurrency:
+  group: rerust-scan
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Cache scan database
+        uses: actions/cache@v4
+        with:
+          path: rerust.db
+          # Rolling key so the DB persists across runs while allowing refresh.
+          key: rerust-db-${{ github.run_id }}
+          restore-keys: |
+            rerust-db-
+
+      - name: Build
+        run: cargo build --release
+
+      # cargo-geiger is only needed for opt-in unsafe measurement, which is a
+      # manual-dispatch option (the daily cron leaves it off to stay cheap/fast).
+      - name: Install cargo-geiger
+        if: ${{ github.event.inputs.measure_unsafe == 'true' }}
+        run: cargo install cargo-geiger --locked
+
+      - name: Scan GitHub for Rust rewrites
+        env:
+          # Actions provides this automatically; grants ~30 search req/min.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./target/release/rerust scan \
+            --repo-pages "${{ github.event.inputs.repo_pages || '3' }}" \
+            --issue-pages "${{ github.event.inputs.issue_pages || '3' }}" \
+            --max-candidates 500 \
+            --no-analyze-history \
+            ${{ github.event.inputs.measure_unsafe == 'true' && '--measure-unsafe' || '' }}
+
+      - name: Reclassify stored projects
+        run: ./target/release/rerust reclassify
+
+      - name: Build static site
+        run: ./target/release/rerust build-site --out docs
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+  deploy:
+    needs: scan
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

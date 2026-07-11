@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ReRust - Rust rewrites in the wild</title>
+  <meta name="description" content="ReRust tracks open-source projects being rewritten in Rust." />
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png" />
+  <link rel="apple-touch-icon" href="assets/logo-64.png" />
+  <style>
+    @font-face {
+      font-family: "Geist Pixel";
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url("https://cdn.jsdelivr.net/npm/geist@1.7.2/dist/fonts/geist-pixel/GeistPixel-Square.woff2") format("woff2");
+    }
+    @font-face {
+      font-family: "Geist Mono";
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url("https://cdn.jsdelivr.net/npm/geist@1.7.2/dist/fonts/geist-mono/GeistMono-Variable.woff2") format("woff2");
+    }
+    :root {
+      --bg: #2a0e14;
+      --bg-elev: #371620;
+      --bg-card: #3a1822;
+      --border: #4d2530;
+      --text: #e6e9ef;
+      --muted: #8b93a3;
+      --rust: #CE412B;
+      --rust-soft: #ff6a4d;
+      --accent: #7aa2f7;
+      --good: #3ddc84;
+      --shadow: 0 1px 0 rgba(255,255,255,0.03), 0 8px 24px rgba(0,0,0,0.4);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Geist Pixel", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+
+    /* Animated code-diff backdrop: fixed, dimmed, non-interactive. Sits behind
+       all page content and shows languages being rewritten to Rust. */
+    .diff-bg {
+      position: fixed; inset: 0; z-index: -1; overflow: hidden;
+      pointer-events: none; user-select: none;
+      display: flex; gap: 44px; padding: 0 28px;
+      background: var(--bg);
+    }
+    .diff-col { flex: 0 0 360px; min-width: 0; }
+    .diff-inner {
+      font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 13.5px; line-height: 1.62; white-space: pre;
+      opacity: 0.42;
+      animation: diffScroll 72s linear infinite;
+      will-change: transform;
+    }
+    .diff-col:nth-child(2n) .diff-inner { animation-duration: 94s; }
+    .diff-col:nth-child(3n) .diff-inner { animation-duration: 58s; }
+    .d-add { color: #4ade80; }
+    .d-del { color: #ff6b6b; }
+    .d-meta { color: #9a7080; }
+    .d-ctx { color: #b098a0; }
+    /* Maroon overlay + vignette to keep the backdrop deep in the background and
+       the foreground content crisp. Lightened so diff stripes read more clearly. */
+    .diff-bg::after {
+      content: ""; position: absolute; inset: 0;
+      background:
+        radial-gradient(120% 90% at 50% 0%, rgba(42,14,20,0.12) 0%, rgba(42,14,20,0.38) 55%, rgba(42,14,20,0.62) 100%),
+        linear-gradient(180deg, rgba(42,14,20,0.22), rgba(42,14,20,0.22));
+    }
+    @keyframes diffScroll {
+      from { transform: translateY(0); }
+      to { transform: translateY(-50%); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .diff-inner { animation: none; }
+    }
+
+    /* Decorative Ferris mascots peeking from the viewport edges. Non-interactive
+       and dimmed, on z-index 0 — above the diff backdrop but below .wrap content
+       (z-index 1) and the fullscreen overlay — so they never obstruct cards or
+       the expanded view. Negative offsets + overflow:hidden make them "peek".
+       Static, and shown at every viewport size so the mascot is always present. */
+    .ferris-field { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+    .ferris {
+      position: absolute; width: 96px; height: auto; opacity: 0.26;
+      filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.4)); user-select: none;
+    }
+    .ferris.f2 { top: 34px;   right: -22px; width: 84px;  transform: rotate(20deg);  opacity: 0.24; }
+    .ferris.f3 { bottom: 70px; left: 20px;  width: 70px;  transform: rotate(12deg);  opacity: 0.25; }
+    .ferris.f4 { bottom: -20px; right: 44px; width: 134px; transform: rotate(-10deg); opacity: 0.28; }
+    .ferris.f5 { top: 45%;    left: -30px;  width: 92px;  transform: rotate(8deg);   opacity: 0.22; }
+    .ferris.f6 { top: 60%;    right: -26px; width: 108px; transform: rotate(-22deg); opacity: 0.23; }
+
+    .wrap { position: relative; z-index: 1; max-width: 2100px; margin: 0 auto; padding: 48px 24px 80px; }
+    /* Header: logo (left) · filters (center) · stats chip (right). */
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      grid-template-areas: "hero controls stats";
+      align-items: center;
+      gap: 12px 20px;
+      margin-bottom: 18px;
+    }
+    header.hero { grid-area: hero; margin: 0; justify-self: start; min-width: 0; }
+    .logo {
+      display: inline-flex; align-items: center;
+      filter: drop-shadow(0 5px 10px rgba(206, 65, 43, 0.28));
+    }
+    .logo-lockup {
+      /* 24-row logical sprite @ 6x (144px); 72px = 2x so pixels stay crisp. */
+      height: 72px; width: auto; flex: none;
+      image-rendering: pixelated; image-rendering: crisp-edges;
+      filter: drop-shadow(0 3px 8px rgba(206, 65, 43, 0.45));
+    }
+    /* Compact dataset stats — right-aligned chip, not a full-width banner. */
+    .site-stats {
+      grid-area: stats;
+      justify-self: end;
+      align-self: center;
+      display: inline-flex; align-items: center; gap: 0.4em;
+      margin: 0; padding: 5px 11px;
+      font-size: 11px; letter-spacing: 0.01em; line-height: 1.3;
+      color: #b8928c;
+      background: rgba(206, 65, 43, 0.10);
+      border: 1px solid rgba(206, 65, 43, 0.28);
+      border-radius: 2px;
+      white-space: nowrap;
+    }
+    .site-stats strong { color: #e8c4bc; font-weight: 700; }
+    .site-stats .sep { color: rgba(206, 65, 43, 0.50); margin: 0 0.35em; }
+    @media (max-width: 960px) {
+      .topbar {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+          "hero stats"
+          "controls controls";
+      }
+      .controls { justify-self: center; }
+    }
+    @media (max-width: 600px) {
+      .logo-lockup { height: 48px; }
+      .topbar {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "hero"
+          "controls"
+          "stats";
+        justify-items: center;
+        text-align: center;
+      }
+      header.hero { justify-self: center; }
+      .site-stats { justify-self: center; white-space: normal; text-align: center; }
+    }
+
+    .controls {
+      grid-area: controls;
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      justify-content: center; justify-self: center;
+    }
+    .filter-icon { width: 15px; height: 15px; color: var(--muted); flex: none; }
+    .search {
+      width: 190px; font-family: inherit;
+      background: var(--bg-elev); border: 1px solid var(--border); color: var(--text);
+      padding: 6px 9px; border-radius: 2px; font-size: 12px; outline: none;
+    }
+    .search:focus { border-color: var(--accent); }
+    select {
+      font-family: inherit;
+      background: var(--bg-elev); border: 1px solid var(--border); color: var(--text);
+      padding: 6px 8px; border-radius: 2px; font-size: 12px; outline: none; cursor: pointer;
+    }
+    .count-pill {
+      color: var(--muted); font-size: 11px; padding: 5px 8px; font-family: inherit;
+      border: 1px solid var(--border); border-radius: 2px; white-space: nowrap;
+    }
+
+    .grid {
+      display: grid; column-gap: 12px; row-gap: 26px;
+      grid-template-columns: 1fr;
+      grid-auto-rows: 1fr;
+      align-items: stretch;
+      position: relative;
+      /* Room for kind-bookmark tabs that peek above the first card row. */
+      padding-top: 18px;
+      /* Subtle mouse-following glow in the gaps between cards. */
+      --gx: 50%; --gy: 50%;
+    }
+    /* Keep each card comfortably wide while using available desktop space. */
+    @media (min-width: 700px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1050px) {
+      .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1400px) {
+      .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    }
+    @media (min-width: 1750px) {
+      .grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+    }
+    @media (min-width: 2100px) {
+      .grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    }
+    .grid::before {
+      content: "";
+      position: absolute; inset: -8px;
+      pointer-events: none; z-index: 0;
+      background: radial-gradient(
+        420px circle at var(--gx) var(--gy),
+        rgba(206, 65, 43, 0.07),
+        rgba(122, 162, 247, 0.03) 35%,
+        transparent 62%
+      );
+      opacity: 0.85;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .grid::before { display: none; }
+    }
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 2px;
+      padding: 0; box-shadow: var(--shadow); display: flex; flex-direction: column;
+      gap: 0;
+      position: relative; z-index: 1; cursor: pointer;
+      overflow: visible; margin-top: 12px;
+      isolation: isolate;
+      min-height: 300px; height: 100%;
+    }
+    .card-body {
+      display: flex; flex-direction: column; gap: 12px;
+      flex: 1; min-height: 0;
+      padding: 22px 24px 20px;
+      position: relative; z-index: 1;
+      background: var(--bg-card); border-radius: 2px;
+    }
+    .card-bottom {
+      display: flex; flex-direction: column; gap: 8px;
+      margin-top: auto;
+    }
+    /* No hover lift/animation on cards; they only respond to click. */
+
+    /* Fullscreen expansion. The clicked card is lifted to a fixed overlay whose
+       left/top/width/height are driven by a JS spring (FLIP). Other cards fade. */
+    .grid.has-expanded .card:not(.expanded) {
+      opacity: 0; pointer-events: none;
+      transition: opacity .28s ease;
+    }
+    .card.expanded {
+      position: fixed; z-index: 60; margin: 0;
+      border-color: #6b3542; cursor: default; overflow: hidden;
+      padding: 0; gap: 0; min-height: unset; height: auto; max-height: none;
+      box-shadow: 0 24px 90px rgba(0,0,0,0.62), 0 2px 0 rgba(255,255,255,0.04);
+      display: flex; flex-direction: column;
+    }
+    /* Scrollable body only when content exceeds the panel; no always-on fade
+       (that read as empty space at the bottom of short cards). */
+    .card.expanded .card-body {
+      padding: 32px 36px 28px;
+      overflow-x: hidden; overflow-y: auto;
+      overscroll-behavior: contain;
+      flex: 0 1 auto;
+    }
+    .card.expanded.is-scrollable .card-body {
+      -webkit-mask-image: linear-gradient(
+        to bottom,
+        #000 0%,
+        #000 calc(100% - 28px),
+        transparent 100%
+      );
+      mask-image: linear-gradient(
+        to bottom,
+        #000 0%,
+        #000 calc(100% - 28px),
+        transparent 100%
+      );
+    }
+    /* Dimmed backdrop behind the expanded card; opacity driven by the spring. */
+    .card-backdrop {
+      position: fixed; inset: 0; z-index: 55;
+      background: rgba(10,4,6,0.74);
+      opacity: 0; pointer-events: auto;
+      -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+    }
+    .card-close {
+      position: absolute; top: 14px; right: 14px; z-index: 5;
+      width: 36px; height: 36px; border-radius: 2px;
+      background: var(--bg-elev); border: 1px solid var(--border);
+      color: var(--text); font-size: 22px; line-height: 1; cursor: pointer;
+      display: none; align-items: center; justify-content: center;
+      font-family: inherit; padding: 0;
+      transition: background .12s ease, border-color .12s ease, color .12s ease;
+    }
+    .card.expanded .card-close { display: inline-flex; }
+    .card-close:hover { background: var(--border); border-color: var(--rust-soft); color: var(--rust-soft); }
+    /* Keep stars clear of the close button. */
+    .card.expanded .card-top { padding-right: 44px; }
+    /* Collapsed-only rewrite PR — hide when expanded (detail panel owns it). */
+    .card.expanded > .card-body > .rewrite-pr.collapsed-only { display: none; }
+    @media (max-width: 640px) {
+      .detail-layout {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+          "hero"
+          "churn"
+          "activity"
+          "ai"
+          "pr";
+      }
+    }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding-top: 4px; }
+    .name { min-width: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.01em; word-break: break-word; }
+    .name a { color: var(--text); text-decoration: none; --meteor: #ffcf6a; }
+    /* Meteor highlight: a bright streak (color set per-hover via --meteor) sweeps
+       across the title glyphs. Two stacked backgrounds — a solid base of the text
+       color plus a moving transparent-except-a-band streak — are clipped to the
+       text, so the base color shows at rest and the streak flares across on hover. */
+    @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+      .name a {
+        color: transparent;
+        background-image:
+          linear-gradient(100deg, transparent 0%, transparent 42%, var(--meteor) 50%, transparent 58%, transparent 100%),
+          linear-gradient(var(--text), var(--text));
+        background-size: 260% 100%, 100% 100%;
+        background-position: 220% 0, 0 0;
+        background-repeat: no-repeat, no-repeat;
+        -webkit-background-clip: text; background-clip: text;
+      }
+      .name a:hover { animation: meteorSweep 2.2s ease-out; }
+    }
+    @keyframes meteorSweep {
+      from { background-position: 220% 0, 0 0; }
+      to { background-position: -90% 0, 0 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .name a:hover { animation: none; }
+      .grid.has-expanded .card:not(.expanded) { transition: none; }
+    }
+    .card-actions {
+      display: inline-flex; align-items: center; gap: 9px; flex: none;
+    }
+    .stars {
+      color: #ffcf6a; font-size: 18px; font-weight: 600; white-space: nowrap;
+      display: inline-flex; gap: 5px; align-items: center;
+      text-shadow: 0 0 2px rgba(255, 207, 106, 0.22);
+      transition: text-shadow .25s ease, filter .25s ease;
+    }
+    .stars svg { width: 18px; height: 18px; flex: none; }
+    /* Warm gold glow only when hovering the star count itself. */
+    .stars:hover {
+      text-shadow: 0 0 10px rgba(255, 207, 106, 0.9), 0 0 4px rgba(255, 207, 106, 0.6);
+      filter: drop-shadow(0 0 5px rgba(255, 207, 106, 0.7));
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .stars { transition: none; }
+    }
+    .desc {
+      color: var(--muted); font-size: 16.5px; line-height: 1.5;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    /* Expanded: allow full description to scroll inside the card body fade. */
+    .card.expanded .desc {
+      display: block; -webkit-line-clamp: unset; -webkit-box-orient: unset;
+      overflow: visible; max-height: none; color: #cfb9bf;
+    }
+
+    .shift {
+      display: inline-flex; align-items: center; gap: 8px; font-size: 14px;
+      color: var(--text); background: var(--bg-elev); border: 1px solid var(--border);
+      padding: 6px 11px; border-radius: 2px; width: fit-content;
+    }
+    .shift .from { color: var(--muted); display: inline-flex; align-items: center; }
+    .shift .arrow { color: var(--rust-soft); font-weight: 700; }
+    .shift .to { color: var(--rust-soft); font-weight: 700; display: inline-flex; align-items: center; }
+    .shift .tag-sep { color: #8b6b74; font-weight: 400; }
+    .shift .rust-pct { color: var(--rust-soft); font-weight: 700; font-size: 12px; }
+    .origin-chip {
+      display: inline-flex; align-items: center; max-width: 100%;
+      font-size: 11px; font-weight: 600; color: #b8928c;
+      background: rgba(79, 209, 197, 0.08); border: 1px solid rgba(79, 209, 197, 0.28);
+      border-radius: 2px; padding: 4px 8px; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+    .origin-chip strong { color: #5eead4; font-weight: 700; margin-right: 4px; }
+    .lang-ico {
+      width: 19px; height: 19px; vertical-align: middle; margin-right: 6px;
+      border-radius: 2px; background: #e6e9ef; padding: 1px; box-sizing: border-box;
+    }
+
+    /* Compact collapsed-state Rust share — merged into .shift strip when possible. */
+    .rust-share-chip {
+      display: none;
+    }
+
+    /* Row that carries the language shift and compact summary chips. */
+    .tags { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+
+    /* Project-kind bookmark: folder tab tucked behind the card's top edge. */
+    .kind-bookmark {
+      position: absolute; left: 18px; top: 0;
+      z-index: -1;
+      display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+      font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 5px 10px 11px;
+      border: 1px solid; border-bottom: none;
+      border-radius: 2px 2px 0 0;
+      transform: translateY(calc(-100% + 1px));
+      pointer-events: none;
+      box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.18);
+    }
+    .kind-bookmark::after {
+      content: "";
+      position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+      background: inherit;
+    }
+    .kind-bookmark svg, .kind-bookmark img { flex: none; image-rendering: pixelated; image-rendering: crisp-edges; }
+    /* REWRITE = headline category. Solid rust tab, reads as the primary bookmark. */
+    .kind-rewrite {
+      font-size: 12px;
+      color: #fff; border-color: var(--rust);
+      background: linear-gradient(180deg, #c44a32 0%, #9a3424 100%);
+    }
+    .kind-rewrite svg, .kind-rewrite img { width: 19px; height: 19px; }
+    /* REPLACEMENT = secondary. Muted teal tab, clearly lower emphasis. */
+    .kind-replacement {
+      font-size: 11px;
+      color: #5eead4; border-color: rgba(79, 209, 197, 0.45);
+      background: linear-gradient(180deg, #1f3d3a 0%, #162b29 100%);
+      box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.12);
+    }
+    .kind-replacement svg, .kind-replacement img { width: 19px; height: 19px; }
+    .card.expanded .kind-bookmark {
+      transform: translateY(calc(-100% + 1px));
+    }
+
+    /* Unsafe-Rust chip (cargo-geiger). Amber to read as a mild caution; only
+       shown when a measurement exists. */
+    .unsafe-chip {
+      display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+      font-size: 13px; font-weight: 600; color: #f0a92f;
+      border: 1px solid rgba(240, 169, 47, 0.5); background: rgba(240, 169, 47, 0.12);
+      border-radius: 2px; padding: 3px 10px;
+    }
+    .unsafe-chip svg { width: 14px; height: 14px; flex: none; }
+
+    .metrics {
+      display: flex; flex-wrap: wrap; gap: 6px;
+      font-size: 13px;
+    }
+    .metric {
+      display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;
+      color: #e0cbd0; border: 1px solid #5a303a; background: #34141d;
+      padding: 4px 7px; border-radius: 2px; line-height: 1;
+    }
+    .metric svg { width: 14px; height: 14px; flex: none; color: var(--rust-soft); }
+    .metric-count { color: var(--text); font-weight: 700; }
+
+    .rewrite-pr {
+      display: flex; align-items: center; gap: 8px; text-decoration: none;
+      font-size: 13px; color: var(--text);
+      background: rgba(206, 65, 43, 0.12);
+      border: 1px solid var(--rust); border-left: 3px solid var(--rust-soft);
+      padding: 8px 10px; border-radius: 2px; transition: background .12s ease, border-color .12s ease;
+    }
+    .rewrite-pr:hover { background: rgba(206, 65, 43, 0.22); border-color: var(--rust-soft); }
+    .rewrite-pr svg { width: 18px; height: 18px; flex: none; color: var(--rust-soft); }
+    .rewrite-pr .rp-label {
+      color: var(--rust-soft); font-weight: 700; white-space: nowrap;
+      text-transform: uppercase; letter-spacing: 0.03em; font-size: 13px;
+    }
+    .rewrite-pr .rp-title { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .gh-icon {
+      display: inline-flex; align-items: center; color: var(--muted);
+      transition: color .12s ease;
+    }
+    .gh-icon:hover { color: var(--text); }
+    .gh-icon svg { width: 18px; height: 18px; }
+
+    /* Expandable detail panel */
+    .card-detail {
+      overflow: hidden; height: 0; opacity: 0;
+      border-top: 1px solid transparent; margin-top: -4px;
+    }
+    .card.expanded .card-detail {
+      height: auto; opacity: 1;
+      border-top-color: #693845; margin-top: 10px; padding-top: 20px;
+    }
+    /* Detail panel: hero summary, then two equal evidence columns, then PR. */
+    .detail-layout {
+      display: grid; gap: 12px;
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "hero hero"
+        "churn activity"
+        "ai ai"
+        "pr pr";
+    }
+    .detail-hero {
+      grid-area: hero;
+      display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
+      gap: 10px 20px; padding-bottom: 12px;
+      border-bottom: 1px solid #693845;
+    }
+    .detail-hero-rust {
+      display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 8px 10px;
+      color: #fff3f5; font-size: 22px; font-weight: 700; line-height: 1.2;
+    }
+    .detail-hero-rust .rust-share-current { color: var(--rust-soft); }
+    .detail-hero-conf {
+      color: #e0cbd0; font-size: 13px; font-weight: 600; white-space: nowrap;
+    }
+    .detail-hero-conf strong { color: #fff3f5; font-size: 15px; font-weight: 700; }
+    .detail-section {
+      background: #3a1822; border: 1px solid #693845; border-radius: 2px;
+      padding: 14px 16px; min-height: 0;
+    }
+    .detail-section-churn { grid-area: churn; }
+    .detail-section-activity { grid-area: activity; }
+    .detail-section-ai { grid-area: ai; }
+    .detail-section-title {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+      text-transform: uppercase; color: #e0cbd0; margin-bottom: 10px;
+    }
+    .detail-churn-values {
+      display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline;
+      font-size: 16px; font-weight: 700; line-height: 1.2;
+    }
+    .detail-churn-values .sep { color: #8b6b74; font-weight: 400; }
+    .detail-activity-row {
+      display: flex; flex-wrap: wrap; gap: 14px 22px;
+    }
+    .detail-activity-item {
+      display: flex; flex-direction: column; gap: 2px;
+    }
+    .detail-activity-item strong {
+      color: #fff3f5; font-size: 17px; font-weight: 700; line-height: 1.15;
+    }
+    .detail-activity-item span {
+      color: #c5abb2; font-size: 10px; text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .detail-ai-inline {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .detail-ai-inline .detail-value { font-size: 18px; }
+    .detail-layout-single {
+      grid-template-columns: 1fr;
+      grid-template-areas:
+        "hero"
+        "churn"
+        "activity"
+        "ai"
+        "pr";
+    }
+    .detail-value { color: #fff3f5; font-weight: 700; }
+    .detail-positive { color: #66dc9a; }
+    .detail-negative { color: #ff8a82; }
+    .rust-share-delta { font-size: 13px; font-weight: 700; }
+    .lines-bar {
+      display: flex; height: 5px; border-radius: 1px; overflow: hidden;
+      margin-top: 12px; background: #562c37;
+    }
+    .lines-add { background: #3fb950; }
+    .lines-del { background: #f85149; }
+    .ai-meter {
+      flex: 1; min-width: 80px; max-width: 200px; height: 5px;
+      background: #562c37; border-radius: 1px; overflow: hidden;
+    }
+    .ai-meter-fill { height: 100%; border-radius: 1px; background: #f0a92f; }
+    .lines-add, .lines-del, .ai-meter-fill {
+      transition: width .9s cubic-bezier(.22, 1, .36, 1);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .lines-add, .lines-del, .ai-meter-fill { transition: none; }
+    }
+    .exp-tag {
+      display: inline-block; font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+      color: #f0a92f; border: 1px solid rgba(240,169,47,0.5); padding: 1px 4px;
+      border-radius: 2px; margin-left: 4px; vertical-align: middle;
+    }
+
+    .empty { text-align: center; color: var(--muted); padding: 60px 0; font-size: 15px; }
+
+    /* Pagination: rectangular, maroon-themed controls under the grid. */
+    .pager {
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+      justify-content: center; margin-top: 28px;
+    }
+    .pg-btn {
+      font-family: inherit; font-size: 12px; color: var(--text);
+      background: var(--bg-elev); border: 1px solid var(--border);
+      border-radius: 2px; padding: 0; min-width: 36px; height: 36px;
+      display: inline-flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: background .12s ease, border-color .12s ease, color .12s ease;
+    }
+    .pg-btn.pg-nav { padding: 0 12px; min-width: unset; width: auto; }
+    .pg-btn:hover:not(:disabled):not(.active) { border-color: var(--accent); }
+    .pg-btn.active {
+      background: rgba(206, 65, 43, 0.18); border-color: var(--rust-soft);
+      color: var(--rust-soft); font-weight: 700; cursor: default;
+    }
+    .pg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .pg-ellipsis { color: var(--muted); padding: 0 4px; font-size: 12px; user-select: none; }
+
+    footer { margin-top: 48px; color: var(--muted); font-size: 12.5px; text-align: center; }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="diff-bg" id="diffBg" aria-hidden="true"></div>
+  <div class="ferris-field" aria-hidden="true">
+    <img class="ferris f2" src="https://rustacean.net/assets/rustacean-flat-happy.svg" alt="" onerror="this.remove()" />
+    <img class="ferris f3" src="https://rustacean.net/assets/rustacean-flat-happy.svg" alt="" onerror="this.remove()" />
+    <img class="ferris f4" src="https://rustacean.net/assets/rustacean-flat-happy.svg" alt="" onerror="this.remove()" />
+    <img class="ferris f5" src="https://rustacean.net/assets/rustacean-flat-happy.svg" alt="" onerror="this.remove()" />
+    <img class="ferris f6" src="https://rustacean.net/assets/rustacean-flat-happy.svg" alt="" onerror="this.remove()" />
+  </div>
+  <div class="wrap">
+    <div class="topbar">
+      <header class="hero">
+        <div class="logo">
+          <img class="logo-lockup" src="assets/logo-lockup-144.png" alt="ReRust" />
+        </div>
+      </header>
+
+      <div class="controls">
+        <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+        </svg>
+        <input id="search" class="search" type="search" placeholder="Search&hellip;" />
+        <select id="sort">
+          <option value="rewrites">Sort: Rewrites first</option>
+          <option value="confidence">Sort: Confidence</option>
+          <option value="stars">Sort: Stars</option>
+          <option value="recent">Sort: Recently detected</option>
+        </select>
+        <span id="count" class="count-pill"></span>
+      </div>
+
+      <p class="site-stats" aria-label="Dataset coverage">
+        <strong>{{ project_count }}</strong><span>projects tracked</span>
+        <span class="sep" aria-hidden="true">&middot;</span>
+        <span>{{ generated_at }}</span>
+      </p>
+    </div>
+
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" style="display:none">No matching projects.</div>
+    <nav id="pager" class="pager" aria-label="Pagination" style="display:none"></nav>
+
+    <footer>
+      Generated by <a href="https://github.com/rafo/rerust">ReRust</a> &middot;
+      data also available as <a href="data.json">data.json</a>
+    </footer>
+  </div>
+
+  <script>
+    // --- Animated code-diff backdrop -------------------------------------
+    // Realistic snippets of other languages being rewritten in Rust. Each
+    // hunk is a list of [class, text] lines; classes drive the +/- coloring.
+    const DIFF_HUNKS = [
+      [["d-meta","--- a/src/strlen.c"],["d-meta","+++ b/src/strlen.rs"],
+       ["d-del","-size_t str_len(const char *s) {"],
+       ["d-del","-    size_t n = 0;"],
+       ["d-del","-    while (*s++) n++;"],
+       ["d-del","-    return n;"],
+       ["d-del","-}"],
+       ["d-add","+fn str_len(s: &str) -> usize {"],
+       ["d-add","+    s.chars().count()"],
+       ["d-add","+}"]],
+      [["d-meta","--- a/server.py"],["d-meta","+++ b/src/server.rs"],
+       ["d-del","-def handle(req):"],
+       ["d-del","-    data = json.loads(req.body)"],
+       ["d-del","-    return jsonify(ok=True)"],
+       ["d-add","+async fn handle(req: Request) -> Json<Reply> {"],
+       ["d-add","+    let data: Body = req.json().await?;"],
+       ["d-add","+    Json(Reply { ok: true })"],
+       ["d-add","+}"]],
+      [["d-meta","--- a/parse.js"],["d-meta","+++ b/src/parse.rs"],
+       ["d-del","-function parse(input) {"],
+       ["d-del","-  return input.split(',').map(Number);"],
+       ["d-del","-}"],
+       ["d-add","+fn parse(input: &str) -> Vec<f64> {"],
+       ["d-add","+    input.split(',').filter_map(|x| x.parse().ok()).collect()"],
+       ["d-add","+}"]],
+      [["d-meta","--- a/cache.go"],["d-meta","+++ b/src/cache.rs"],
+       ["d-del","-func (c *Cache) Get(k string) ([]byte, bool) {"],
+       ["d-del","-    v, ok := c.m[k]"],
+       ["d-del","-    return v, ok"],
+       ["d-del","-}"],
+       ["d-add","+fn get(&self, k: &str) -> Option<&[u8]> {"],
+       ["d-add","+    self.map.get(k).map(Vec::as_slice)"],
+       ["d-add","+}"]],
+      [["d-meta","--- a/vector.cpp"],["d-meta","+++ b/src/vector.rs"],
+       ["d-del","-template <class T> T sum(std::vector<T> v) {"],
+       ["d-del","-    T acc = 0;"],
+       ["d-del","-    for (auto& x : v) acc += x;"],
+       ["d-del","-    return acc;"],
+       ["d-del","-}"],
+       ["d-add","+fn sum<T: Sum>(v: Vec<T>) -> T {"],
+       ["d-add","+    v.into_iter().sum()"],
+       ["d-add","+}"]],
+      [["d-meta","--- a/hash.rb"],["d-meta","+++ b/src/hash.rs"],
+       ["d-del","-def fetch(key)"],
+       ["d-del","-  @store[key] || raise KeyError"],
+       ["d-del","-end"],
+       ["d-add","+fn fetch(&self, key: &str) -> Result<&Val, Error> {"],
+       ["d-add","+    self.store.get(key).ok_or(Error::Missing)"],
+       ["d-add","+}"]],
+      [["d-meta","--- a/App.ts"],["d-meta","+++ b/src/app.rs"],
+       ["d-del","-export function retry(fn, n = 3) {"],
+       ["d-del","-  for (let i = 0; i < n; i++) try { return fn(); } catch {}"],
+       ["d-del","-}"],
+       ["d-add","+fn retry<T>(f: impl Fn() -> Result<T>, n: u32) -> Result<T> {"],
+       ["d-add","+    (0..n).find_map(|_| f().ok()).ok_or(Error::Retries)"],
+       ["d-add","+}"]],
+      [["d-meta","--- a/alloc.c"],["d-meta","+++ b/src/alloc.rs"],
+       ["d-del","-char *buf = malloc(len + 1);"],
+       ["d-del","-memcpy(buf, src, len);"],
+       ["d-del","-buf[len] = '\\0';"],
+       ["d-add","+let mut buf = String::with_capacity(len + 1);"],
+       ["d-add","+buf.push_str(src);"]],
+    ];
+
+    function buildDiffColumn() {
+      // Flatten a shuffled sequence of hunks into one column's worth of lines,
+      // separated by blank context rows, then duplicate for a seamless loop.
+      const order = DIFF_HUNKS.map((_, i) => i).sort(() => Math.random() - 0.5);
+      let html = "";
+      for (const idx of order) {
+        for (const [cls, text] of DIFF_HUNKS[idx]) {
+          html += '<div class="' + cls + '">' + escapeHtml(text) + "</div>";
+        }
+        html += '<div class="d-ctx"> </div>';
+      }
+      const inner = document.createElement("div");
+      inner.className = "diff-inner";
+      inner.innerHTML = html + html; // two copies -> translateY(-50%) loops seamlessly
+      const col = document.createElement("div");
+      col.className = "diff-col";
+      col.appendChild(inner);
+      return col;
+    }
+
+    function renderDiffBg() {
+      const host = document.getElementById("diffBg");
+      if (!host) return;
+      const cols = Math.max(3, Math.ceil(window.innerWidth / 380) + 1);
+      host.innerHTML = "";
+      for (let i = 0; i < cols; i++) host.appendChild(buildDiffColumn());
+    }
+
+    const DATA = {{ data_json | safe }};
+
+    const grid = document.getElementById("grid");
+    const empty = document.getElementById("empty");
+    const countEl = document.getElementById("count");
+    const searchEl = document.getElementById("search");
+    const sortEl = document.getElementById("sort");
+    const pager = document.getElementById("pager");
+
+    // Pagination: filter -> sort -> paginate. `page` is 1-indexed and reset to 1
+    // whenever the search query or sort order changes.
+    const PAGE_SIZE = 12;
+    let page = 1;
+
+    function escapeHtml(s) {
+      return String(s == null ? "" : s)
+        .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;").replaceAll("'", "&#39;");
+    }
+
+    function fmtNum(n) {
+      n = n || 0;
+      if (n >= 1000000) return trimZeros((n / 1000000).toFixed(n >= 10000000 ? 1 : 2)) + "M";
+      if (n >= 1000) return trimZeros((n / 1000).toFixed(n >= 10000 ? 0 : 1)) + "k";
+      return new Intl.NumberFormat("en-US").format(n);
+    }
+
+    function trimZeros(s) {
+      return String(s).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+    }
+
+    function fmtRate(n) {
+      return fmtNum(Math.round(n)) + " lines/day";
+    }
+
+    // Inline octicon-style SVGs (16x16, currentColor) for the metrics row.
+    const ICON = {
+      star: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.75.75 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z"/></svg>',
+      fork: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/></svg>',
+      issue: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/><path fill="currentColor" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/></svg>',
+      pr: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg>',
+      help: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm7.036-1.984c-.87 0-1.322.585-1.322 1.008a.75.75 0 0 1-1.5 0c0-1.418 1.354-2.508 2.822-2.508 1.492 0 2.858 1.03 2.858 2.5 0 1.235-.822 1.887-1.34 2.256-.192.137-.35.246-.46.353-.09.088-.106.137-.106.175v.5a.75.75 0 0 1-1.5 0v-.5c0-.577.29-1.02.62-1.34.24-.234.533-.437.746-.585l.055-.038c.517-.36.735-.588.735-1.021 0-.554-.532-1-1.358-1ZM8 12a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>',
+      github: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.18.82.63-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.51-1.04 2.18-.82 2.18-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>',
+      // arrow-switch: fronts the REWRITE badge — a project migrated to Rust
+      // (identity continuity from another language).
+      arrows: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M4.177 7.823a.75.75 0 0 1 0 1.06L2.06 11h9.44a.75.75 0 0 1 0 1.5H2.06l2.117 2.117a.75.75 0 1 1-1.06 1.06L.47 12.53a.75.75 0 0 1 0-1.06l3.647-3.647a.75.75 0 0 1 1.06 0Zm7.646-7.646L15.47 3.824a.75.75 0 0 1 0 1.06L11.823 8.53a.75.75 0 0 1-1.06-1.06L12.88 5.354H3.44a.75.75 0 0 1 0-1.5h9.44l-2.117-2.117a.75.75 0 0 1 1.06-1.06Z"/></svg>',
+      // split: fronts the REPLACEMENT badge — an independent alternative/fork.
+      split: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7.25 14.5V8.121L3.439 4.939a1.5 1.5 0 0 1 2.122-2.121L8 5.879l2.439-2.06a1.5 1.5 0 1 1 1.94 2.299L8.75 8.12V14.5a.75.75 0 0 1-1.5 0ZM4.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>',
+      // shield: fronts the unsafe-Rust percentage chip.
+      shield: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8.533.133a1.75 1.75 0 0 0-1.066 0l-5.25 1.68A1.75 1.75 0 0 0 1 3.48V7c0 1.566.32 3.182 1.303 4.682.983 1.498 2.585 2.813 5.032 3.855a1.7 1.7 0 0 0 1.33 0c2.447-1.042 4.049-2.357 5.032-3.855C14.68 10.182 15 8.566 15 7V3.48a1.75 1.75 0 0 0-1.217-1.667L8.533.133Z"/></svg>',
+    };
+
+    // Map GitHub language names to devicon CDN icon paths (static, no build step).
+    const LANG_ICON = {
+      "rust": "rust/rust-original.svg",
+      "c": "c/c-original.svg",
+      "c++": "cplusplus/cplusplus-original.svg",
+      "python": "python/python-original.svg",
+      "typescript": "typescript/typescript-original.svg",
+      "javascript": "javascript/javascript-original.svg",
+      "go": "go/go-original.svg",
+      "java": "java/java-original.svg",
+      "ruby": "ruby/ruby-original.svg",
+      "c#": "csharp/csharp-original.svg",
+      "php": "php/php-original.svg",
+      "swift": "swift/swift-original.svg",
+      "kotlin": "kotlin/kotlin-original.svg",
+      "scala": "scala/scala-original.svg",
+      "haskell": "haskell/haskell-original.svg",
+      "lua": "lua/lua-original.svg",
+      "perl": "perl/perl-original.svg",
+      "r": "r/r-original.svg",
+      "dart": "dart/dart-original.svg",
+      "elixir": "elixir/elixir-original.svg",
+      "zig": "zig/zig-original.svg",
+      "shell": "bash/bash-original.svg",
+      "objective-c": "objectivec/objectivec-plain.svg",
+    };
+
+    function langIcon(name) {
+      if (!name) return null;
+      const path = LANG_ICON[String(name).toLowerCase()];
+      return path ? "https://cdn.jsdelivr.net/gh/devicons/devicon/icons/" + path : null;
+    }
+
+    // Language label with an optional icon that self-hides if it fails to load.
+    function langChunk(name, cls) {
+      const url = langIcon(name);
+      const img = url
+        ? `<img class="lang-ico" src="${escapeHtml(url)}" alt="" width="14" height="14" onerror="this.remove()" />`
+        : "";
+      return `<span class="${cls}">${img}${escapeHtml(name)}</span>`;
+    }
+
+    function metric(icon, value, label) {
+      const count = fmtNum(value);
+      return `<span class="metric" title="${escapeHtml(label)}: ${count}" aria-label="${escapeHtml(label)}: ${count}">${icon}<span class="metric-count">${count}</span></span>`;
+    }
+
+    function truncate(s, n) {
+      s = String(s || "");
+      return s.length > n ? s.slice(0, n - 1) + "\u2026" : s;
+    }
+
+    function detailPanel(p) {
+      const conf = Math.round((p.confidence || 0) * 100);
+      const added = p.lines_added || 0;
+      const removed = p.lines_removed || 0;
+      const total = added + removed || 1;
+      const addPct = Math.round((added / total) * 100);
+      const delPct = 100 - addPct;
+      const ai = p.ai_assist_score != null ? Math.round(p.ai_assist_score * 100) : null;
+      const hasHistory = p.history_rust_before != null && p.history_rust_after != null;
+      const startRust = hasHistory ? Math.round(Number(p.history_rust_before)) : null;
+      const endRust = hasHistory ? Math.round(Number(p.history_rust_after)) : null;
+      const rustDelta = hasHistory ? endRust - startRust : null;
+      const rustPct = Math.round(Number(p.rust_percentage || 0));
+
+      const rustHero = hasHistory
+        ? `<div class="detail-hero-rust" aria-label="Rust share changed from ${startRust}% to ${endRust}%">
+             <span>${startRust}% → <span class="rust-share-current">${endRust}% Rust</span></span>
+             <span class="rust-share-delta ${rustDelta >= 0 ? "detail-positive" : "detail-negative"}">${rustDelta >= 0 ? "+" : ""}${rustDelta} pp</span>
+           </div>`
+        : `<div class="detail-hero-rust" aria-label="${rustPct}% Rust">
+             <span class="rust-share-current">${rustPct}% Rust</span>
+           </div>`;
+
+      const churnSection = (added > 0 || removed > 0)
+        ? `<section class="detail-section detail-section-churn">
+             <div class="detail-section-title">Code churn</div>
+             <div class="detail-churn-values">
+               <span class="detail-positive">+${fmtNum(added)}</span>
+               <span class="sep">/</span>
+               <span class="detail-negative">−${fmtNum(removed)}</span>
+             </div>
+             <div class="lines-bar" aria-hidden="true">
+               <div class="lines-add" style="width:0%" data-w="${addPct}"></div>
+               <div class="lines-del" style="width:0%" data-w="${delPct}"></div>
+             </div>
+           </section>`
+        : "";
+
+      const activityItems = [
+        p.rewrite_duration_days != null
+          ? `<div class="detail-activity-item"><strong>${fmtNum(p.rewrite_duration_days)}d</strong><span>duration</span></div>` : "",
+        p.commit_count != null
+          ? `<div class="detail-activity-item"><strong>${fmtNum(p.commit_count)}</strong><span>commits</span></div>` : "",
+        p.rewrite_velocity != null
+          ? `<div class="detail-activity-item"><strong>${fmtRate(p.rewrite_velocity)}</strong><span>velocity</span></div>` : "",
+      ].filter(Boolean).join("");
+      const activitySection = activityItems
+        ? `<section class="detail-section detail-section-activity">
+             <div class="detail-section-title">Rewrite window</div>
+             <div class="detail-activity-row">${activityItems}</div>
+           </section>`
+        : "";
+
+      const aiSection = ai != null
+        ? `<section class="detail-section detail-section-ai">
+             <div class="detail-ai-inline">
+               <span class="detail-section-title" style="margin:0">AI assist<span class="exp-tag">EXP</span></span>
+               <span class="detail-value" data-count="${ai}" data-suffix="%">${ai}%</span>
+               <div class="ai-meter" aria-hidden="true"><div class="ai-meter-fill" style="width:0%" data-w="${ai}"></div></div>
+             </div>
+           </section>`
+        : "";
+
+      const rewritePrDetail = p.rewrite_pr && p.rewrite_pr.url
+        ? `<a class="rewrite-pr detail-pr-row" href="${escapeHtml(p.rewrite_pr.url)}" target="_blank" rel="noopener" title="${escapeHtml(p.rewrite_pr.title)}" onclick="event.stopPropagation()">
+             ${ICON.pr}
+             <span class="rp-label">Rewrite PR</span>
+             <span class="rp-title">${escapeHtml(truncate(p.rewrite_pr.title, 80))}</span>
+           </a>`
+        : "";
+
+      // Single-column layout when only one evidence section exists.
+      const layoutClass = (churnSection && activitySection) ? "detail-layout"
+        : "detail-layout detail-layout-single";
+
+      return `<div class="card-detail" hidden>
+        <div class="${layoutClass}">
+          <header class="detail-hero">
+            ${rustHero}
+            <div class="detail-hero-conf">Confidence <strong data-count="${conf}" data-suffix="%">${conf}%</strong></div>
+          </header>
+          ${churnSection}${activitySection}${aiSection}${rewritePrDetail}
+        </div>
+      </div>`;
+    }
+
+    function collapsedTags(p, rustPct) {
+      const rustChunk = langChunk("Rust", "to");
+      const pct = `<span class="tag-sep" aria-hidden="true">·</span><span class="rust-pct">${rustPct}%</span>`;
+      const unsafeChip = (p.unsafe_percentage != null)
+        ? `<span class="unsafe-chip" title="Share of unsafe Rust (measured by cargo-geiger)">${ICON.shield} ${Number(p.unsafe_percentage).toFixed(1)}% unsafe</span>`
+        : "";
+      if (p.original_language) {
+        return `<div class="tags">
+          <div class="shift">${langChunk(p.original_language, "from")}<span class="arrow">&rarr;</span>${rustChunk}${pct}</div>
+          ${unsafeChip}
+        </div>`;
+      }
+      const origin = p.named_origin
+        ? `<span class="origin-chip" title="Positioned as an alternative to an existing tool"><strong>vs</strong>${escapeHtml(p.named_origin)}</span>`
+        : "";
+      return `<div class="tags">
+        <div class="shift">${rustChunk}${pct}</div>
+        ${origin}${unsafeChip}
+      </div>`;
+    }
+
+    function card(p, idx) {
+      const conf = Math.round((p.confidence || 0) * 100);
+      const rustPct = (p.rust_percentage || 0).toFixed(0);
+      const kindBadge = p.project_kind === "rewrite"
+        ? `<span class="kind-bookmark kind-rewrite" title="The same project migrated to Rust — its own code rewritten/ported"><img src="assets/icon-rewrite-32.png" width="19" height="19" alt="" /> Rewrite</span>`
+        : `<span class="kind-bookmark kind-replacement" title="A new, independent Rust project positioned as an alternative to an existing tool"><img src="assets/icon-replacement-32.png" width="19" height="19" alt="" /> Replacement</span>`;
+      const tags = collapsedTags(p, rustPct);
+      const desc = p.description ? escapeHtml(p.description) : "<em>No description.</em>";
+      const ghUrl = p.repo_url || p.source_url;
+      const gh = ghUrl
+        ? `<a class="gh-icon" href="${escapeHtml(ghUrl)}" target="_blank" rel="noopener" aria-label="View on GitHub" title="View on GitHub" onclick="event.stopPropagation()">${ICON.github}</a>`
+        : "";
+      const metrics = `
+        <div class="metrics">
+          ${metric(ICON.fork, p.forks, "Forks")}
+          ${metric(ICON.issue, p.open_issues, "Open issues")}
+          ${metric(ICON.pr, p.open_prs, "Open pull requests")}
+        </div>`;
+      // Collapsed preview of the rewrite PR (hidden via CSS when expanded).
+      const rewritePrCollapsed = p.rewrite_pr && p.rewrite_pr.url
+        ? `<a class="rewrite-pr collapsed-only" href="${escapeHtml(p.rewrite_pr.url)}" target="_blank" rel="noopener" title="${escapeHtml(p.rewrite_pr.title)}" onclick="event.stopPropagation()">
+             ${ICON.pr}
+             <span class="rp-label">Rewrite PR</span>
+             <span class="rp-title">${escapeHtml(truncate(p.rewrite_pr.title, 80))}</span>
+           </a>`
+        : "";
+      return `
+        <article class="card" data-idx="${idx}" tabindex="0" role="button" aria-expanded="false">
+          ${kindBadge}
+          <div class="card-body">
+            <div class="card-top">
+              <div class="name"><a href="${escapeHtml(p.repo_url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(p.name)}</a></div>
+              <div class="card-actions">
+                <div class="stars">${ICON.star} ${fmtNum(p.stars)}</div>
+                ${gh}
+              </div>
+            </div>
+            <div class="desc">${desc}</div>
+            <div class="card-bottom">
+              ${tags}
+              ${rewritePrCollapsed}
+              ${metrics}
+            </div>
+            ${detailPanel(p)}
+          </div>
+        </article>`;
+    }
+
+    // --- Fullscreen card expansion (FLIP + physics spring) ----------------
+    // A clicked card is lifted out of the grid into a fixed overlay and grows to
+    // (nearly) fill the viewport, while every other card fades away behind a
+    // dimmed backdrop. The transition is driven by a spring interpolating the
+    // card's left/top/width/height between its grid rect and the target rect.
+    let expandedCard = null;
+    let animating = false;
+    // Bumped whenever a new expand/collapse starts, so any in-flight spring loop
+    // from a superseded transition can detect it's stale and stop itself.
+    let animToken = 0;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    // Size the expanded panel to its content, capped by the viewport.
+    function targetRect(card) {
+      const padY = Math.max(20, Math.min(36, window.innerHeight * 0.05));
+      const padX = Math.max(16, Math.min(32, window.innerWidth * 0.04));
+      const maxW = Math.min(window.innerWidth - padX * 2, 720);
+      const maxH = Math.min(window.innerHeight - padY * 2, Math.floor(window.innerHeight * 0.88));
+      const left = (window.innerWidth - maxW) / 2;
+
+      const prev = {
+        position: card.style.position,
+        left: card.style.left,
+        top: card.style.top,
+        width: card.style.width,
+        height: card.style.height,
+        maxHeight: card.style.maxHeight,
+        visibility: card.style.visibility,
+        transform: card.style.transform,
+      };
+      card.style.visibility = "hidden";
+      card.style.position = "fixed";
+      card.style.left = left + "px";
+      card.style.top = padY + "px";
+      card.style.width = maxW + "px";
+      card.style.height = "auto";
+      card.style.maxHeight = "none";
+      card.style.transform = "none";
+      const natural = Math.ceil(card.scrollHeight);
+      Object.assign(card.style, prev);
+
+      const height = Math.min(maxH, Math.max(natural, 160));
+      const top = Math.max(padY, (window.innerHeight - height) / 2);
+      return { left, top, width: maxW, height, natural, maxH };
+    }
+
+    function clearCardStyles(card) {
+      [
+        "left", "top", "width", "height", "position", "zIndex", "margin",
+        "overflow", "transform", "transformOrigin", "transition", "padding",
+        "minHeight", "maxHeight", "visibility", "willChange",
+      ].forEach((p) => { card.style[p] = ""; });
+    }
+
+    // Animate the expanded-card visualizations: bars/meters grow from 0 to their
+    // target width (data-w), and numeric values count up (data-count).
+    function animateViz(card) {
+      const detail = card.querySelector(".card-detail");
+      if (!detail) return;
+
+      detail.querySelectorAll("[data-w]").forEach((el) => {
+        const target = el.getAttribute("data-w") + "%";
+        if (prefersReducedMotion) { el.style.width = target; return; }
+        el.style.width = "0%";
+        void el.offsetWidth;
+        requestAnimationFrame(() => { el.style.width = target; });
+      });
+
+      detail.querySelectorAll("[data-count]").forEach((el) => {
+        const target = parseFloat(el.getAttribute("data-count"));
+        const suffix = el.getAttribute("data-suffix") || "";
+        if (!isFinite(target)) return;
+        if (prefersReducedMotion) { el.textContent = target + suffix; return; }
+        const dur = 900, start = performance.now();
+        function step(now) {
+          const t = Math.min(1, (now - start) / dur);
+          const eased = 1 - Math.pow(1 - t, 3);
+          el.textContent = Math.round(target * eased) + suffix;
+          if (t < 1) requestAnimationFrame(step);
+        }
+        requestAnimationFrame(step);
+      });
+    }
+
+    function expandCard(card) {
+      if (animating || expandedCard === card) return;
+      if (expandedCard) return;
+      const detail = card.querySelector(".card-detail");
+      if (detail) detail.hidden = false;
+
+      const first = card.getBoundingClientRect();
+      const placeholder = document.createElement("div");
+      placeholder.style.width = first.width + "px";
+      placeholder.style.height = first.height + "px";
+      placeholder.setAttribute("aria-hidden", "true");
+      card.after(placeholder);
+      card._placeholder = placeholder;
+
+      const backdrop = document.createElement("div");
+      backdrop.className = "card-backdrop";
+      backdrop.addEventListener("click", () => collapseCard(card));
+      (grid.parentElement || document.body).appendChild(backdrop);
+      card._backdrop = backdrop;
+
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "card-close";
+      closeBtn.type = "button";
+      closeBtn.setAttribute("aria-label", "Close");
+      closeBtn.innerHTML = "&times;";
+      closeBtn.addEventListener("click", (e) => { e.stopPropagation(); collapseCard(card); });
+      card.appendChild(closeBtn);
+      card._closeBtn = closeBtn;
+
+      // Lift into expanded layout at the destination size, then FLIP from the
+      // grid rect via transform (avoids layout thrash / end pop).
+      card.style.position = "fixed";
+      card.style.margin = "0";
+      card.style.left = first.left + "px";
+      card.style.top = first.top + "px";
+      card.style.width = first.width + "px";
+      card.style.height = first.height + "px";
+      card.classList.add("expanded");
+      grid.classList.add("has-expanded");
+      card.setAttribute("aria-expanded", "true");
+      expandedCard = card;
+
+      const dest = targetRect(card);
+      card._destRect = dest;
+      card.classList.toggle("is-scrollable", dest.natural > dest.maxH);
+
+      card.style.left = dest.left + "px";
+      card.style.top = dest.top + "px";
+      card.style.width = dest.width + "px";
+      card.style.height = dest.height + "px";
+      card.style.overflow = "hidden";
+      card.style.transformOrigin = "top left";
+      card.style.zIndex = "60";
+
+      const sx = first.width / dest.width;
+      const sy = first.height / dest.height;
+      const dx = first.left - dest.left;
+      const dy = first.top - dest.top;
+      card.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+
+      animateViz(card);
+      animating = true;
+      const token = ++animToken;
+
+      if (prefersReducedMotion) {
+        card.style.transform = "none";
+        if (dest.natural <= dest.maxH) {
+          card.style.height = "auto";
+          card.style.maxHeight = dest.maxH + "px";
+        }
+        backdrop.style.opacity = "1";
+        animating = false;
+        return;
+      }
+
+      // Double rAF so the browser commits the inverted transform before we play.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (token !== animToken) return;
+          card.style.transition = "transform 0.42s cubic-bezier(.22, 1, .36, 1)";
+          card.style.transform = "none";
+          backdrop.style.transition = "opacity 0.35s ease";
+          backdrop.style.opacity = "1";
+        });
+      });
+
+      const onEnd = (e) => {
+        if (e && e.target !== card) return;
+        if (e && e.propertyName && e.propertyName !== "transform") return;
+        card.removeEventListener("transitionend", onEnd);
+        if (token !== animToken) return;
+        card.style.transition = "";
+        card.style.transform = "";
+        if (dest.natural <= dest.maxH) {
+          card.style.height = "auto";
+          card.style.maxHeight = dest.maxH + "px";
+        }
+        animating = false;
+      };
+      card.addEventListener("transitionend", onEnd);
+      // Safety if transitionend is skipped.
+      setTimeout(() => onEnd({ target: card, propertyName: "transform" }), 500);
+    }
+
+    function collapseCard(card) {
+      if (!card || !card.classList.contains("expanded") || animating) return;
+      const backdrop = card._backdrop;
+      const placeholder = card._placeholder;
+      const detail = card.querySelector(".card-detail");
+      const first = card.getBoundingClientRect();
+      animating = true;
+      const token = ++animToken;
+
+      // Put the card back into the grid in its final collapsed state *first*,
+      // then FLIP with a transform so layout never pops at the end.
+      if (detail) detail.hidden = true;
+      if (card._closeBtn) { card._closeBtn.remove(); card._closeBtn = null; }
+      card.classList.remove("is-scrollable", "expanded");
+      clearCardStyles(card);
+      if (placeholder && placeholder.parentNode) {
+        placeholder.parentNode.insertBefore(card, placeholder);
+        placeholder.remove();
+        card._placeholder = null;
+      }
+      card.setAttribute("aria-expanded", "false");
+      grid.classList.remove("has-expanded");
+      if (expandedCard === card) expandedCard = null;
+
+      const last = card.getBoundingClientRect();
+      const sx = first.width / Math.max(last.width, 1);
+      const sy = first.height / Math.max(last.height, 1);
+      const dx = first.left - last.left;
+      const dy = first.top - last.top;
+
+      card.style.transformOrigin = "top left";
+      card.style.transform = `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+      card.style.zIndex = "60";
+      card.style.overflow = "hidden";
+      card.style.willChange = "transform";
+
+      if (backdrop) {
+        backdrop.style.transition = prefersReducedMotion ? "none" : "opacity 0.3s ease";
+        backdrop.style.opacity = "0";
+      }
+
+      if (prefersReducedMotion) {
+        clearCardStyles(card);
+        if (backdrop) { backdrop.remove(); card._backdrop = null; }
+        animating = false;
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (token !== animToken) return;
+          card.style.transition = "transform 0.38s cubic-bezier(.22, 1, .36, 1)";
+          card.style.transform = "none";
+        });
+      });
+
+      const onEnd = (e) => {
+        if (e && e.target !== card) return;
+        if (e && e.propertyName && e.propertyName !== "transform") return;
+        card.removeEventListener("transitionend", onEnd);
+        if (token !== animToken) return;
+        clearCardStyles(card);
+        if (backdrop) { backdrop.remove(); card._backdrop = null; }
+        animating = false;
+      };
+      card.addEventListener("transitionend", onEnd);
+      setTimeout(() => onEnd({ target: card, propertyName: "transform" }), 480);
+    }
+
+    function bindCards() {
+      grid.querySelectorAll(".card").forEach((card) => {
+        card.addEventListener("click", (e) => {
+          if (e.target.closest("a")) return;
+          if (e.target.closest(".card-close")) return;
+          if (card.classList.contains("expanded")) return;
+          expandCard(card);
+        });
+        card.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            if (card.classList.contains("expanded")) collapseCard(card);
+            else expandCard(card);
+          }
+        });
+        // Meteor highlight: pick a fresh vivid color each time the title is hovered.
+        const titleLink = card.querySelector(".name a");
+        if (titleLink) {
+          titleLink.addEventListener("mouseenter", () => {
+            const hue = Math.floor(Math.random() * 360);
+            const sat = 78 + Math.floor(Math.random() * 20); // 78–97%
+            const light = 60 + Math.floor(Math.random() * 12); // 60–71%
+            titleLink.style.setProperty("--meteor", `hsl(${hue} ${sat}% ${light}%)`);
+          });
+        }
+      });
+    }
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && expandedCard) collapseCard(expandedCard);
+    });
+
+    function currentView() {
+      const q = searchEl.value.trim().toLowerCase();
+      let rows = DATA.filter((p) => {
+        // Defensive: only real Rewrites and Replacements ever surface; drop any
+        // `neither` / zero-confidence rows that slip through the data feed.
+        if (p.project_kind === "neither" || !(p.confidence > 0)) return false;
+        if (!q) return true;
+        const hay = [p.name, p.description, p.original_language].filter(Boolean).join(" ").toLowerCase();
+        return hay.includes(q);
+      });
+      const sort = sortEl.value;
+      const isRewrite = (p) => (p.project_kind === "rewrite" ? 1 : 0);
+      const isExemplar = (p) => (p.exemplar ? 1 : 0);
+      rows.sort((a, b) => {
+        if (sort === "stars") return (b.stars || 0) - (a.stars || 0);
+        if (sort === "recent") return String(b.first_detected).localeCompare(String(a.first_detected));
+        // Exemplars and rewrites surface first.
+        const ex = isExemplar(b) - isExemplar(a);
+        if (ex !== 0) return ex;
+        if (sort === "rewrites") {
+          const k = isRewrite(b) - isRewrite(a);
+          if (k !== 0) return k;
+          return (b.confidence || 0) - (a.confidence || 0);
+        }
+        return (b.confidence || 0) - (a.confidence || 0);
+      });
+      return rows;
+    }
+
+    // Tear down any expanded/overlay state before re-rendering the grid, so a
+    // search/sort that replaces cards can't leave a dangling backdrop behind.
+    function resetExpansion() {
+      document.querySelectorAll(".card-backdrop").forEach((b) => b.remove());
+      grid.classList.remove("has-expanded");
+      expandedCard = null;
+      animating = false;
+    }
+
+    // Build a compact page-number sequence with ellipses for large page counts:
+    // always show first/last and a window around the current page.
+    function pageList(cur, total) {
+      if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+      const out = [1];
+      const left = Math.max(2, cur - 1), right = Math.min(total - 1, cur + 1);
+      if (left > 2) out.push("\u2026");
+      for (let i = left; i <= right; i++) out.push(i);
+      if (right < total - 1) out.push("\u2026");
+      out.push(total);
+      return out;
+    }
+
+    function renderPager(totalPages) {
+      if (totalPages <= 1) { pager.innerHTML = ""; pager.style.display = "none"; return; }
+      pager.style.display = "flex";
+      let html = `<button class="pg-btn pg-nav" data-page="${page - 1}" ${page === 1 ? "disabled" : ""} aria-label="Previous page">\u2039 Prev</button>`;
+      for (const it of pageList(page, totalPages)) {
+        html += it === "\u2026"
+          ? `<span class="pg-ellipsis">\u2026</span>`
+          : `<button class="pg-btn pg-num${it === page ? " active" : ""}" data-page="${it}"${it === page ? ' aria-current="page"' : ""}>${it}</button>`;
+      }
+      html += `<button class="pg-btn pg-nav" data-page="${page + 1}" ${page === totalPages ? "disabled" : ""} aria-label="Next page">Next \u203a</button>`;
+      pager.innerHTML = html;
+    }
+
+    function render() {
+      resetExpansion();
+      const rows = currentView();
+      const total = rows.length;
+      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      page = Math.min(Math.max(1, page), totalPages);
+
+      if (total === 0) {
+        grid.innerHTML = "";
+        empty.style.display = "block";
+        countEl.textContent = "0 shown";
+        renderPager(1);
+        return;
+      }
+
+      empty.style.display = "none";
+      const start = (page - 1) * PAGE_SIZE;
+      const end = Math.min(start + PAGE_SIZE, total);
+      grid.innerHTML = rows.slice(start, end).map((p, i) => card(p, i)).join("");
+      bindCards();
+      countEl.textContent = `Showing ${start + 1}\u2013${end} of ${total}`;
+      renderPager(totalPages);
+    }
+
+    function goToPage(p) {
+      const totalPages = Math.max(1, Math.ceil(currentView().length / PAGE_SIZE));
+      const clamped = Math.min(Math.max(1, p), totalPages);
+      if (clamped === page) return;
+      page = clamped;
+      render();
+      const top = grid.getBoundingClientRect().top + window.scrollY - 24;
+      window.scrollTo({ top: Math.max(0, top), behavior: prefersReducedMotion ? "auto" : "smooth" });
+    }
+
+    pager.addEventListener("click", (e) => {
+      const btn = e.target.closest(".pg-btn");
+      if (!btn || btn.disabled) return;
+      goToPage(parseInt(btn.getAttribute("data-page"), 10));
+    });
+
+    // Left/Right arrows page through the grid (ignored while typing or expanded).
+    document.addEventListener("keydown", (e) => {
+      if (expandedCard) return;
+      const tag = (e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "select" || tag === "textarea") return;
+      if (e.key === "ArrowLeft") goToPage(page - 1);
+      else if (e.key === "ArrowRight") goToPage(page + 1);
+    });
+
+    searchEl.addEventListener("input", () => { page = 1; render(); });
+    sortEl.addEventListener("change", () => { page = 1; render(); });
+
+    // Subtle mouse-following glow in the grid gutters.
+    grid.addEventListener("mousemove", (e) => {
+      const r = grid.getBoundingClientRect();
+      const x = ((e.clientX - r.left) / r.width) * 100;
+      const y = ((e.clientY - r.top) / r.height) * 100;
+      grid.style.setProperty("--gx", x + "%");
+      grid.style.setProperty("--gy", y + "%");
+    });
+    grid.addEventListener("mouseleave", () => {
+      grid.style.setProperty("--gx", "50%");
+      grid.style.setProperty("--gy", "50%");
+    });
+
+    render();
+
+    renderDiffBg();
+    let diffResizeTimer;
+    window.addEventListener("resize", () => {
+      clearTimeout(diffResizeTimer);
+      diffResizeTimer = setTimeout(renderDiffBg, 250);
+    });
+  </script>
+</body>
+</html>

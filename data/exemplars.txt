@@ -1,0 +1,23 @@
+# Canonical Rust rewrites — enriched first, shown at top of site.
+# Format: owner/repo (one per line). Lines starting with # are ignored.
+#
+# Runtimes & platforms (HN/GitHub headline rewrites)
+oven-sh/bun
+denoland/deno
+uutils/coreutils
+kata-containers/kata-containers
+
+# Compilers & language tooling
+withastro/compiler
+facebook/react
+swc-project/swc
+oxc-project/oxc
+biomejs/biome
+astral-sh/ruff
+
+# Same-product migrations (identity + commit history)
+johnlindquist/script-kit-next
+FalkorDB/falkordb-rs-next-gen
+
+# Package managers & core infra
+pnpm/pacquet
