@@ -1,8 +1,8 @@
 # ReRust
 
-Find open-source projects migrating to Rust. Classify each hit as rewrite, replacement, or noise. Publish results to `docs/`.
+![ReRust](docs/assets/logo-lockup-144.png)
 
-Logo: pixel rustacean holding diff `+`/`-`, one lockup sprite (`docs/assets/logo-lockup-144.png`). Regenerate with `python3 scripts/generate_sprites.py`.
+Find open-source projects migrating to Rust. Classify each hit as rewrite, replacement, or noise. Publish results to `docs/`.
 
 ## Build and preview
 
