@@ -1,6 +1,6 @@
 # ReRust
 
-[![Pages](https://img.shields.io/badge/pages-live-blue)](https://gitter499.github.io/rerust/)
+[![Pages](https://img.shields.io/badge/site-reru.st-blue)](https://reru.st/)
 [![scan-and-deploy](https://github.com/Gitter499/rerust/actions/workflows/scan.yml/badge.svg)](https://github.com/Gitter499/rerust/actions/workflows/scan.yml)
 [![enrich-and-deploy](https://github.com/Gitter499/rerust/actions/workflows/enrich.yml/badge.svg)](https://github.com/Gitter499/rerust/actions/workflows/enrich.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
@@ -8,7 +8,7 @@
 
 ![ReRust](docs/assets/logo-lockup-144.png)
 
-Find open-source projects migrating to Rust. Classify each hit as rewrite, replacement, or noise. Publish results to `docs/`.
+Find open-source projects migrating to Rust. Classify each hit as rewrite, replacement, or noise. Publish results to [reru.st](https://reru.st/).
 
 ## Build and preview
 
@@ -22,7 +22,7 @@ python3 -m http.server -d docs 8000
 
 ## Production
 
-Scans and enrichment run on GitHub Actions: [Gitter499/rerust](https://github.com/Gitter499/rerust).
+Scans and enrichment run on GitHub Actions: [Gitter499/rerust](https://github.com/Gitter499/rerust). Site deploys to [reru.st](https://reru.st/).
 
 | Workflow | Schedule |
 |----------|----------|
