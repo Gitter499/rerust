@@ -1,5 +1,11 @@
 # ReRust
 
+[![Pages](https://img.shields.io/badge/pages-live-blue)](https://gitter499.github.io/rerust/)
+[![scan-and-deploy](https://github.com/Gitter499/rerust/actions/workflows/scan.yml/badge.svg)](https://github.com/Gitter499/rerust/actions/workflows/scan.yml)
+[![enrich-and-deploy](https://github.com/Gitter499/rerust/actions/workflows/enrich.yml/badge.svg)](https://github.com/Gitter499/rerust/actions/workflows/enrich.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
+[![Rust](https://img.shields.io/badge/rust-stable-orange.svg)](https://www.rust-lang.org)
+
 ![ReRust](docs/assets/logo-lockup-144.png)
 
 Find open-source projects migrating to Rust. Classify each hit as rewrite, replacement, or noise. Publish results to `docs/`.
