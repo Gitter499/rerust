@@ -29,14 +29,30 @@ const AI_MSG_PATTERNS: &[&str] = &[
 ];
 
 /// Known AI coding agents, matched against `Co-authored-by: Name <email>` text.
+///
+/// Needles are matched as lowercase substrings. Prefer email domains / product
+/// tokens over bare given names so human coauthors are not mislabeled.
 const AI_AGENTS: &[(&str, &[&str])] = &[
-    ("Cursor", &["cursoragent@cursor.com", "cursor.com", "cursor agent"]),
-    ("Claude", &["noreply@anthropic.com", "anthropic.com", "claude "]),
+    ("Cursor", &["cursoragent@cursor.com", "@cursor.com", "cursor agent", "cursor <"]),
+    (
+        "Claude",
+        &[
+            "noreply@anthropic.com",
+            "@anthropic.com",
+            "claude opus",
+            "claude sonnet",
+            "claude haiku",
+            "claude fable",
+            "claude code",
+            "claude <",
+            "claude ",
+        ],
+    ),
     ("Copilot", &["copilot", "github-copilot"]),
-    ("Codex", &["noreply@openai.com", "openai.com", "codex"]),
+    ("Codex", &["noreply@openai.com", "@openai.com", "codex"]),
     ("ChatGPT", &["chatgpt", "@chatgpt.com"]),
-    ("Gemini", &["gemini-code-assist@google.com", "gemini"]),
-    ("Devin", &["devin.ai", "devin "]),
+    ("Gemini", &["gemini-code-assist@google.com", "gemini-code-assist", "gemini code"]),
+    ("Devin", &["devin.ai", "@devin.ai", "devin "]),
     ("Aider", &["aider.chat", "aider@"]),
     ("Windsurf", &["windsurf", "codeium"]),
     ("Amazon Q", &["amazon q", "amazonq"]),
@@ -266,6 +282,40 @@ mod tests {
             detect_ai_agents(&commits),
             vec!["Claude".to_string(), "Cursor".to_string()]
         );
+    }
+
+    #[test]
+    fn detects_pulp_style_claude_model_trailers() {
+        // Real trailers from danielraffel/pulp (Claude Code / Claude.app).
+        let commits = vec![
+            commit_with_coauthors(
+                "fix skill",
+                10,
+                1,
+                &["Claude Opus 4.8 (1M context) <noreply@anthropic.com>"],
+            ),
+            commit_with_coauthors(
+                "gpu audio",
+                20,
+                2,
+                &[
+                    "daniel raffel <daniel.raffel@gmail.com>",
+                    "Claude Fable 5 <noreply@anthropic.com>",
+                ],
+            ),
+        ];
+        assert_eq!(detect_ai_agents(&commits), vec!["Claude".to_string()]);
+    }
+
+    #[test]
+    fn ignores_human_coauthors() {
+        let commits = vec![commit_with_coauthors(
+            "docs",
+            5,
+            1,
+            &["daniel raffel <daniel.raffel@gmail.com>"],
+        )];
+        assert!(detect_ai_agents(&commits).is_empty());
     }
 
     #[test]

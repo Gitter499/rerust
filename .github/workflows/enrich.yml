@@ -19,6 +19,11 @@ on:
         type: boolean
         required: false
         default: false
+      force:
+        description: "Re-analyze repos even when history_status is already ok (refreshes Co-authored-by agents)"
+        type: boolean
+        required: false
+        default: false
 
 permissions:
   contents: read
@@ -109,6 +114,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          FORCE_FLAG=""
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.force }}" == "true" ]]; then
+            FORCE_FLAG="--force"
+          fi
           ./rerust-bin backfill-history \
             --db "shard-${{ matrix.shard }}.db" \
             --shard "${{ matrix.shard }}/${{ env.SHARD_COUNT }}" \
@@ -117,7 +126,8 @@ jobs:
             --macro-timeout-secs "${{ github.event.inputs.macro_timeout_secs || '600' }}" \
             --exemplars-file data/exemplars.txt \
             --retry-failed \
-            --no-measure-unsafe
+            --no-measure-unsafe \
+            $FORCE_FLAG
 
       - name: Upload shard DB
         uses: actions/upload-artifact@v4
