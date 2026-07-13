@@ -1,20 +1,31 @@
 //! SQLite persistence for detected projects.
 //!
-//! The store is deliberately tiny: one `projects` table keyed by repository URL.
-//! Upserts preserve the original `first_detected` timestamp while refreshing all
-//! other fields, so re-running a scan keeps history without duplicating rows.
+//! One `projects` table keyed by repository URL. Upserts preserve
+//! `first_detected` while refreshing other fields.
 
 use anyhow::{Context, Result};
 use rusqlite::{Connection, OptionalExtension};
 
 use crate::types::{Project, RewritePr, Signal};
 
+const PROJECT_COLS: &str = r#"
+    name, repo_url, description, stars, original_language,
+    rust_percentage, confidence, signals, source_url,
+    first_detected, last_seen, open_issues, open_prs, forks,
+    rewrite_pr_title, rewrite_pr_url, unsafe_percentage, project_kind,
+    named_origin, lines_added, lines_removed, rewrite_velocity,
+    ai_assist_score, rewrite_duration_days, commit_count,
+    history_from_language, history_rust_before, history_rust_after,
+    transition_magnitude, total_commits_analyzed,
+    history_status, history_error, history_attempted_at, history_attempts,
+    rewrite_prs
+"#;
+
 pub struct Store {
     conn: Connection,
 }
 
 impl Store {
-    /// Open (or create) the database at `path` and ensure the schema exists.
     pub fn open(path: &str) -> Result<Self> {
         let conn = Connection::open(path).with_context(|| format!("open db at {path}"))?;
         conn.execute_batch(
@@ -62,9 +73,7 @@ impl Store {
         )
         .context("initialize schema")?;
 
-        // Migrate older databases created before these metric columns existed.
-        // ALTER TABLE ADD COLUMN appends at the end (matching the CREATE above),
-        // so fresh and migrated databases share an identical column layout.
+        // Older DBs: ADD COLUMN is a no-op when the column already exists.
         for column in [
             "open_issues INTEGER NOT NULL DEFAULT 0",
             "open_prs INTEGER NOT NULL DEFAULT 0",
@@ -97,18 +106,9 @@ impl Store {
         Ok(Self { conn })
     }
 
-    /// Insert a project, or update it in place, preserving `first_detected`.
     pub fn upsert(&self, project: &Project) -> Result<()> {
         let signals_json = serde_json::to_string(&project.signals)?;
-        let rewrite_prs = if project.rewrite_prs.is_empty() {
-            project
-                .rewrite_pr
-                .clone()
-                .into_iter()
-                .collect::<Vec<_>>()
-        } else {
-            project.rewrite_prs.clone()
-        };
+        let rewrite_prs = project.effective_rewrite_prs();
         let rewrite_prs_json = serde_json::to_string(&rewrite_prs)?;
         let rewrite_pr_title = rewrite_prs.first().map(|r| r.title.as_str());
         let rewrite_pr_url = rewrite_prs.first().map(|r| r.url.as_str());
@@ -203,7 +203,6 @@ impl Store {
         Ok(())
     }
 
-    /// Persist only history backfill bookkeeping without touching scored fields.
     pub fn mark_history_attempt(
         &self,
         repo_url: &str,
@@ -228,8 +227,6 @@ impl Store {
         Ok(())
     }
 
-    /// Remove a project by repo URL. Used to drop rows that reclassify demotes
-    /// to `Neither`, keeping the stored set free of non-provenance noise.
     pub fn delete(&self, repo_url: &str) -> Result<()> {
         self.conn
             .execute("DELETE FROM projects WHERE repo_url = ?1", [repo_url])
@@ -237,7 +234,6 @@ impl Store {
         Ok(())
     }
 
-    /// Return the timestamp a repo was first detected, if it already exists.
     pub fn first_detected(&self, repo_url: &str) -> Result<Option<String>> {
         let value = self
             .conn
@@ -250,50 +246,21 @@ impl Store {
         Ok(value)
     }
 
-    /// Load one project by repo URL, if present.
     pub fn get(&self, repo_url: &str) -> Result<Option<Project>> {
-        let mut stmt = self.conn.prepare(
-            r#"
-            SELECT name, repo_url, description, stars, original_language,
-                   rust_percentage, confidence, signals, source_url,
-                   first_detected, last_seen, open_issues, open_prs, forks,
-                   rewrite_pr_title, rewrite_pr_url, unsafe_percentage, project_kind,
-                   named_origin, lines_added, lines_removed, rewrite_velocity,
-                   ai_assist_score, rewrite_duration_days, commit_count,
-                   history_from_language, history_rust_before, history_rust_after,
-                   transition_magnitude, total_commits_analyzed,
-                   history_status, history_error, history_attempted_at, history_attempts,
-                   rewrite_prs
-            FROM projects
-            WHERE repo_url = ?1
-            "#,
-        )?;
+        let sql = format!("SELECT {PROJECT_COLS} FROM projects WHERE repo_url = ?1");
+        let mut stmt = self.conn.prepare(&sql)?;
         let row = stmt
             .query_row([repo_url], |row| self.row_to_project(row))
             .optional()?;
         Ok(row)
     }
 
-    /// Load all projects, ordered by confidence then stars (both descending).
     pub fn all(&self) -> Result<Vec<Project>> {
-        let mut stmt = self.conn.prepare(
-            r#"
-            SELECT name, repo_url, description, stars, original_language,
-                   rust_percentage, confidence, signals, source_url,
-                   first_detected, last_seen, open_issues, open_prs, forks,
-                   rewrite_pr_title, rewrite_pr_url, unsafe_percentage, project_kind,
-                   named_origin, lines_added, lines_removed, rewrite_velocity,
-                   ai_assist_score, rewrite_duration_days, commit_count,
-                   history_from_language, history_rust_before, history_rust_after,
-                   transition_magnitude, total_commits_analyzed,
-                   history_status, history_error, history_attempted_at, history_attempts,
-                   rewrite_prs
-            FROM projects
-            ORDER BY confidence DESC, stars DESC
-            "#,
-        )?;
+        let sql = format!(
+            "SELECT {PROJECT_COLS} FROM projects ORDER BY confidence DESC, stars DESC"
+        );
+        let mut stmt = self.conn.prepare(&sql)?;
         let rows = stmt.query_map([], |row| self.row_to_project(row))?;
-
         let mut out = Vec::new();
         for row in rows {
             out.push(row?);
@@ -306,7 +273,8 @@ impl Store {
         let signals: Vec<Signal> = serde_json::from_str(&signals_json).unwrap_or_default();
         let rewrite_pr_title: Option<String> = row.get(14)?;
         let rewrite_pr_url: Option<String> = row.get(15)?;
-        let rewrite_prs_json: String = row.get::<_, Option<String>>(34)?.unwrap_or_else(|| "[]".into());
+        let rewrite_prs_json: String =
+            row.get::<_, Option<String>>(34)?.unwrap_or_else(|| "[]".into());
         let mut rewrite_prs: Vec<RewritePr> =
             serde_json::from_str(&rewrite_prs_json).unwrap_or_default();
         if rewrite_prs.is_empty() {
@@ -355,9 +323,6 @@ impl Store {
     }
 }
 
-/// Run `ALTER TABLE <table> ADD COLUMN <column_def>`, treating an already-present
-/// column as success. SQLite reports this as a "duplicate column name" error,
-/// which is the only error we swallow here.
 fn add_column_if_missing(conn: &Connection, table: &str, column_def: &str) -> Result<()> {
     let sql = format!("ALTER TABLE {table} ADD COLUMN {column_def}");
     match conn.execute(&sql, []) {

@@ -1,0 +1,73 @@
+# Curated "vs" labels for known replacement projects.
+# Format: owner/repo | Origin label
+# Applied when description/signal extraction misses a clear predecessor.
+
+# Runtimes & package managers
+denoland/deno | Node.js
+pnpm/pacquet | pnpm
+
+# Classic CLI replacements
+sharkdp/fd | find
+eza-community/eza | ls
+uutils/coreutils | GNU coreutils
+uutils/diffutils | diffutils
+uutils/findutils | findutils
+uutils/red | GNU sed
+johunsang/semble_rs | grep
+xen0n/autojump-rs | autojump
+
+# Networking & infra
+rustdesk/rustdesk | TeamViewer
+valeriansaliou/sonic | Elasticsearch
+rathole-org/rathole | frp
+shadowsocks/shadowsocks-rust | shadowsocks
+sockudo/sockudo | Pusher
+mehrantsi/feox-server | Redis
+linkwithjoydeep/oken | SSH
+kmesh-net/orion | Envoy
+scalesocket/scalesocket | websocketd
+quinck-io/chimera | GitHub Actions runners
+lamports-dev/alpamayo | Solana RPC
+abyo-software/s4 | AWS S3
+
+# Dev tools & platforms
+windmill-labs/windmill | Retool
+j178/prek | pre-commit
+AprilNEA/OpenLogi | Logitech Options+
+rivet-dev/agentos | sandboxes
+yaxitech/ragenix | agenix
+pheuter/svelte-check-rs | svelte-check
+owenlamont/ryl | yamllint
+muglug/pzoom | Psalm
+zhongweili/cj | jc
+xwings/miemietron | mihomo
+mzhang28/wat | WakaTime
+
+# Ports / reimplementations
+remacs/remacs | Emacs
+hykilpikonna/hyfetch | neofetch
+newsboat/newsboat | newsbeuter
+org-rs/org-rs | org-mode
+y-crdt/y-crdt | Yjs
+ferrumc-rs/ferrumc | Minecraft server
+hanabi1224/RuAnnoy | annoy
+jkitchin/pounce | Ipopt
+BSN4/grpc-php-rs | ext-grpc
+bearcove/aasvg-rs | aasvg
+rstackjs/rspack-resolver | enhanced-resolve
+landaire/fazi | libfuzzer
+Fierthraix/rmatrix | cmatrix
+PNRxA/openposterdb | rpdb
+cubing/twips | tnoodle
+ferrumox/fox | Ollama
+mattbettcher/rustyPixelGameEngine | PixelGameEngine
+Shizcow/dmenu-rs | dmenu
+Kirottu/dmenu-rs | dmenu
+mastodon/flodgatt | Mastodon streaming API
+lode-org/readcon-core | readcon
+Limeth/obs-shaderfilter-plus | obs-shaderfilter
+markdown-it-rust/markdown-it | markdown-it
+Revertron/Yggdrasil-ng | Yggdrasil
+devinjeon/FastPathPicker | Facebook PathPicker
+Tobiscuit/wizwalker-rs | WizWalker
+alphabench/raptorbt | vectorbt

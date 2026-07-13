@@ -55,7 +55,7 @@ const ORIGIN_MARKERS: &[&str] = &[
 ];
 
 const ORIGIN_STOPS: &[&str] = &[
-    ",", ".", ";", ":", "(", ")", "`", "\"", "/", "!", "?", "\n", " — ", " - ",
+    ",", ".", ";", ":", "(", ")", "`", "\"", "'", "/", "!", "?", "\n", " — ", " - ",
     " using ", " written ", " built ", " with ", " that ", " which ",
     " in rust", " and ", " for ",
     " repo ", " mentions ", " describes ", " positions ", " is a ",
@@ -158,7 +158,10 @@ fn clean_origin(after: &str) -> Option<String> {
             end = end.min(i);
         }
     }
-    let mut name = after[..end].trim().to_string();
+    let mut name = after[..end]
+        .trim()
+        .trim_matches(|c: char| matches!(c, '`' | '"' | '\''))
+        .to_string();
     for article in ["the ", "a ", "an "] {
         if let Some(rest) = name.strip_prefix(article) {
             name = rest.to_string();
@@ -172,6 +175,35 @@ fn clean_origin(after: &str) -> Option<String> {
     }
 }
 
+/// "obs-shaderfilter rewritten in rust" → "obs-shaderfilter".
+fn extract_rewritten_subject(text: &str) -> Option<String> {
+    for marker in [" rewritten in rust", " reimplemented in rust"] {
+        let Some(i) = text.find(marker) else {
+            continue;
+        };
+        let before = text[..i].trim_end();
+        if before.is_empty() {
+            continue;
+        }
+        let start = before
+            .rfind([':', '—', '.', ';', '|'])
+            .map(|j| j + 1)
+            .unwrap_or(0);
+        let subject = before[start..].trim();
+        // Prefer the trailing noun phrase (drop leading marketing fluff).
+        let subject = subject
+            .rsplit_once(',')
+            .map(|(_, tail)| tail.trim())
+            .unwrap_or(subject);
+        if let Some(name) = clean_origin(subject) {
+            if name.split_whitespace().count() <= 5 {
+                return Some(name);
+            }
+        }
+    }
+    None
+}
+
 fn is_generic_origin_signal(detail: &str) -> bool {
     let d = detail.to_lowercase();
     d.contains("named project")
@@ -183,9 +215,16 @@ fn is_generic_origin_signal(detail: &str) -> bool {
         || d.contains("repo positions itself")
 }
 
-fn extract_origin_from_candidate(candidate: &Candidate) -> Option<String> {
+pub fn named_origin(candidate: &Candidate) -> Option<String> {
+    if let Some(origin) = crate::origins::lookup(&candidate.full_name) {
+        return Some(origin);
+    }
     if let Some(desc) = candidate.description.as_deref() {
-        if let Some(origin) = extract_named_origin(&desc.to_lowercase()) {
+        let lower = desc.to_lowercase();
+        if let Some(origin) = extract_named_origin(&lower) {
+            return Some(origin);
+        }
+        if let Some(origin) = extract_rewritten_subject(&lower) {
             return Some(origin);
         }
     }
@@ -193,15 +232,15 @@ fn extract_origin_from_candidate(candidate: &Candidate) -> Option<String> {
         if is_generic_origin_signal(&s.detail) {
             continue;
         }
-        if let Some(origin) = extract_named_origin(&s.detail.to_lowercase()) {
+        let lower = s.detail.to_lowercase();
+        if let Some(origin) = extract_named_origin(&lower) {
+            return Some(origin);
+        }
+        if let Some(origin) = extract_rewritten_subject(&lower) {
             return Some(origin);
         }
     }
     None
-}
-
-pub fn named_origin(candidate: &Candidate) -> Option<String> {
-    extract_origin_from_candidate(candidate)
 }
 
 fn rust_api(text: &str) -> bool {
@@ -459,12 +498,8 @@ fn has_migration_pr(candidate: &Candidate) -> bool {
 
 /// Classify under identity-continuity provenance.
 ///
-/// `Rewrite` ⟺ identity ∧ (commit-proven rising-Rust history **or** a product
-/// migration PR). History alone can miss monorepo transitions (e.g. Bun); a
-/// merged "Rewrite X in Rust" / "migrate from Zig to Rust" PR on the product
-/// itself is enough when identity already holds.
-/// Everything else with migration/competitor framing → `Replacement`.
-/// API shims / bare bait → `Neither`.
+/// Rewrite ⟺ identity ∧ (rising-Rust history **or** product migration PR).
+/// Migration/competitor framing without that → Replacement. Else Neither.
 pub fn classify(
     candidate: &Candidate,
     analysis: &LanguageAnalysis,
@@ -788,6 +823,22 @@ mod tests {
         assert_eq!(
             extract_named_origin("drop-in replacement for gnu sed, written in rust").as_deref(),
             Some("gnu sed")
+        );
+        assert_eq!(
+            extract_named_origin("a simple, fast and user-friendly alternative to 'find'").as_deref(),
+            Some("find")
+        );
+    }
+
+    #[test]
+    fn extracts_rewritten_subject() {
+        assert_eq!(
+            extract_rewritten_subject("obs-shaderfilter rewritten in rust and improved").as_deref(),
+            Some("obs-shaderfilter")
+        );
+        assert_eq!(
+            extract_rewritten_subject("yggdrasil network rewritten in rust.").as_deref(),
+            Some("yggdrasil network")
         );
     }
 

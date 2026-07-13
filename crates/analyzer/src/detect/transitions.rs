@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use tracing::warn;
 
-use super::enrich::{enrichment_from_totals, legacy_stat_from_record, CommitEnrichment};
+use super::enrich::{enrichment_from_totals, CommitEnrichment};
 use super::git_history::{
     fetch_log, language_from_path, parse_numstat_log, CommitRecord, FileChange,
 };
@@ -382,8 +382,6 @@ fn enrichment_from_window(window: &[&CommitRecord]) -> CommitEnrichment {
         .sum();
     let min_ts = window.iter().map(|c| c.timestamp).min().unwrap_or(0);
     let max_ts = window.iter().map(|c| c.timestamp).max().unwrap_or(0);
-    let legacy_stats: Vec<_> = window.iter().map(|c| legacy_stat_from_record(c)).collect();
-    let refs: Vec<_> = legacy_stats.iter().collect();
 
     enrichment_from_totals(
         lines_added,
@@ -391,7 +389,7 @@ fn enrichment_from_window(window: &[&CommitRecord]) -> CommitEnrichment {
         window.len() as u32,
         min_ts,
         max_ts,
-        &refs,
+        window,
     )
 }
 

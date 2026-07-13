@@ -976,22 +976,15 @@
       const prs = rewritePrList(p);
       if (!prs.length) return "";
       const cls = extraClass ? `rewrite-pr ${extraClass}` : "rewrite-pr";
-      if (prs.length === 1) {
-        const pr = prs[0];
+      const items = prs.map((pr, i) => {
+        const label = prs.length === 1 ? "Rewrite PR" : (i === 0 ? "Rewrite PRs" : "PR");
         return `<a class="${cls}" href="${escapeHtml(pr.url)}" target="_blank" rel="noopener" title="${escapeHtml(pr.title)}" onclick="event.stopPropagation()">
              ${ICON.pr}
-             <span class="rp-label">Rewrite PR</span>
+             <span class="rp-label">${label}</span>
              <span class="rp-title">${escapeHtml(truncate(pr.title, 80))}</span>
            </a>`;
-      }
-      const items = prs.map((pr, i) =>
-        `<a class="${cls}" href="${escapeHtml(pr.url)}" target="_blank" rel="noopener" title="${escapeHtml(pr.title)}" onclick="event.stopPropagation()">
-             ${ICON.pr}
-             <span class="rp-label">${i === 0 ? "Rewrite PRs" : "PR"}</span>
-             <span class="rp-title">${escapeHtml(truncate(pr.title, 80))}</span>
-           </a>`
-      ).join("");
-      return `<div class="rewrite-prs">${items}</div>`;
+      }).join("");
+      return prs.length === 1 ? items : `<div class="rewrite-prs">${items}</div>`;
     }
 
     function card(p) {

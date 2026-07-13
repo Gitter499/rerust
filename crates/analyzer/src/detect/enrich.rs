@@ -1,7 +1,4 @@
 //! Rewrite-window metrics and the experimental AI-assist heuristic.
-//!
-//! Prefer [`super::transitions::analyze_history`] for language-shift detection;
-//! this module holds the shared enrichment shape and AI scoring used by that path.
 
 use super::git_history::CommitRecord;
 
@@ -17,22 +14,6 @@ pub struct CommitEnrichment {
     pub commit_count: Option<u32>,
 }
 
-/// Per-commit shape used by the AI-assist heuristic.
-#[derive(Debug, Clone)]
-pub(crate) struct LegacyCommitStat {
-    pub timestamp: i64,
-    pub subject: String,
-    pub added: u64,
-}
-
-pub(crate) fn legacy_stat_from_record(c: &CommitRecord) -> LegacyCommitStat {
-    LegacyCommitStat {
-        timestamp: c.timestamp,
-        subject: c.subject.clone(),
-        added: c.files.iter().map(|f| f.added).sum(),
-    }
-}
-
 const AI_MSG_PATTERNS: &[&str] = &[
     "refactor",
     "translate",
@@ -43,6 +24,10 @@ const AI_MSG_PATTERNS: &[&str] = &[
     "translation",
 ];
 
+fn commit_added(c: &CommitRecord) -> u64 {
+    c.files.iter().map(|f| f.added).sum()
+}
+
 /// Build enrichment from window totals + optional AI score input.
 pub(crate) fn enrichment_from_totals(
     lines_added: u64,
@@ -50,7 +35,7 @@ pub(crate) fn enrichment_from_totals(
     commit_count: u32,
     min_ts: i64,
     max_ts: i64,
-    ai_window: &[&LegacyCommitStat],
+    ai_window: &[&CommitRecord],
 ) -> CommitEnrichment {
     let days = duration_days(min_ts, max_ts);
     let churn = lines_added + lines_removed;
@@ -66,7 +51,7 @@ pub(crate) fn enrichment_from_totals(
         lines_added: Some(lines_added),
         lines_removed: Some(lines_removed),
         rewrite_velocity: velocity,
-        ai_assist_score: Some(compute_ai_assist_score_legacy(
+        ai_assist_score: Some(compute_ai_assist_score(
             ai_window,
             lines_added,
             lines_removed,
@@ -76,8 +61,8 @@ pub(crate) fn enrichment_from_totals(
     }
 }
 
-pub(crate) fn compute_ai_assist_score_legacy(
-    window: &[&LegacyCommitStat],
+pub(crate) fn compute_ai_assist_score(
+    window: &[&CommitRecord],
     lines_added: u64,
     lines_removed: u64,
 ) -> f64 {
@@ -105,7 +90,7 @@ pub(crate) fn compute_ai_assist_score_legacy(
         .count() as f64;
     score += ((templated / n) * 0.25).min(0.25);
 
-    let big_commits = window.iter().filter(|c| c.added > 2000).count() as f64;
+    let big_commits = window.iter().filter(|c| commit_added(c) > 2000).count() as f64;
     if big_commits > 0.0 {
         score += (big_commits / n * 0.25).min(0.25);
     }
@@ -114,11 +99,11 @@ pub(crate) fn compute_ai_assist_score_legacy(
     round2(score.clamp(0.0, 1.0))
 }
 
-fn burst_score(window: &[&LegacyCommitStat]) -> f64 {
+fn burst_score(window: &[&CommitRecord]) -> f64 {
     if window.len() < 3 {
         return 0.0;
     }
-    let mut sorted: Vec<&LegacyCommitStat> = window.to_vec();
+    let mut sorted: Vec<&CommitRecord> = window.to_vec();
     sorted.sort_by_key(|c| c.timestamp);
 
     let mut max_burst = 1usize;
@@ -165,30 +150,35 @@ pub(crate) fn round2(x: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::detect::git_history::FileChange;
 
-    fn commit(subject: &str, added: u64, _removed: u64, ts: i64) -> LegacyCommitStat {
-        LegacyCommitStat {
+    fn commit(subject: &str, added: u64, ts: i64) -> CommitRecord {
+        CommitRecord {
             timestamp: ts,
             subject: subject.into(),
-            added,
+            files: vec![FileChange {
+                path: "x.rs".into(),
+                added,
+                removed: 0,
+            }],
         }
     }
 
     #[test]
     fn high_loc_and_templated_messages_raise_ai_score() {
-        let c1 = commit("refactor: translate module foo", 3000, 2800, 1_700_000_000);
-        let c2 = commit("refactor: port module bar", 2500, 2400, 1_700_086_400);
+        let c1 = commit("refactor: translate module foo", 3000, 1_700_000_000);
+        let c2 = commit("refactor: port module bar", 2500, 1_700_086_400);
         let refs = [&c1, &c2];
-        let score = compute_ai_assist_score_legacy(&refs, 5500, 5200);
+        let score = compute_ai_assist_score(&refs, 5500, 5200);
         assert!(score >= 0.5, "expected high score, got {score}");
     }
 
     #[test]
     fn small_manual_commits_score_low() {
-        let c1 = commit("fix typo", 3, 1, 1_700_000_000);
-        let c2 = commit("update readme", 10, 5, 1_700_100_000);
+        let c1 = commit("fix typo", 3, 1_700_000_000);
+        let c2 = commit("update readme", 10, 1_700_100_000);
         let refs = [&c1, &c2];
-        let score = compute_ai_assist_score_legacy(&refs, 13, 6);
+        let score = compute_ai_assist_score(&refs, 13, 6);
         assert!(score < 0.3, "expected low score, got {score}");
     }
 }

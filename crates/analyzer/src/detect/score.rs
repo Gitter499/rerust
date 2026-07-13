@@ -1,13 +1,4 @@
-//! Composite confidence scoring.
-//!
-//! Confidence combines two independent lines of evidence:
-//!   * textual/heuristic signals (what people *say* about the project), and
-//!   * language composition (what the repo *actually* contains).
-//!
-//! Neither alone is decisive: a repo can talk about a rewrite that never
-//! happened, or be mostly Rust for unrelated reasons. Requiring both to line up
-//! produces a far more trustworthy score. Weights are intentionally simple and
-//! easy to tune; a learned classifier is a planned future addition.
+//! Composite confidence scoring: text signals + language composition + history.
 
 use crate::detect::classify::{
     classify, has_strong_rewrite_signal, named_origin, signal_title_body, ProjectKind,
@@ -20,47 +11,23 @@ use crate::types::{Candidate, Project, RewritePr};
 /// Default scan threshold in `main.rs`; used by tests to assert filtering.
 pub const DEFAULT_MIN_CONFIDENCE: f64 = 0.15;
 
-/// When there is no substantial displaced language, confidence is capped here
-/// unless the repo explicitly advertises replacing an existing tool.
 const NO_DISPLACED_CAP: f64 = 0.12;
-
-/// Confidence cap for projects that lack displaced-language bytes but carry
-/// strong replacement/migration wording (e.g. ripgrep, or an already-100%-Rust
-/// rewrite).
 const REPLACEMENT_REWRITE_CAP: f64 = 0.55;
-
-/// Small confidence edge granted to genuine **Rewrites** (a project's own code
-/// migrated to Rust), which are the tool's primary focus. It is deliberately
-/// modest — a nudge that surfaces true rewrites above equivalent replacements
-/// rather than fabricated certainty — and is applied *before* the
-/// no-displaced-language cap, so a rewrite without displaced bytes still can't
-/// exceed [`REPLACEMENT_REWRITE_CAP`].
 const REWRITE_CONFIDENCE_BONUS: f64 = 0.05;
+const TEXT_CAP: f64 = 0.60;
+const LANG_CAP: f64 = 0.50;
+const HISTORY_CAP: f64 = 0.35;
 
-/// Per-signal contribution to the textual evidence score.
 fn signal_weight(kind: &str) -> f64 {
     match kind {
-        // The repo itself advertising a rewrite is the strongest text signal.
         "repo-search" => 0.35,
-        // Curated exemplar from data/exemplars.txt.
         "exemplar" => 0.40,
-        // An open/merged PR about a rewrite is strong corroboration.
         "pull-request" => 0.20,
-        // A mere issue is weaker (could be a wishlist item).
         "issue" => 0.10,
         _ => 0.05,
     }
 }
 
-/// Maximum share of the total score attributable to text signals alone.
-const TEXT_CAP: f64 = 0.60;
-/// Maximum share attributable to language composition alone.
-const LANG_CAP: f64 = 0.50;
-
-/// Maximum share attributable to commit-history transition evidence.
-const HISTORY_CAP: f64 = 0.35;
-
-/// Combine a candidate and its language analysis into a scored [`Project`].
 pub fn score(
     candidate: &Candidate,
     analysis: &LanguageAnalysis,
@@ -75,8 +42,6 @@ pub fn score(
         .sum::<f64>()
         .min(TEXT_CAP);
 
-    // Language evidence scales with Rust's share when a displaced language is
-    // present; a Rust-heavy repo alone does not prove a rewrite happened.
     let has_displaced = analysis.original_language.is_some();
     let mut lang_evidence = if has_displaced {
         (analysis.rust_percentage / 100.0) * 0.4
@@ -88,7 +53,6 @@ pub fn score(
     }
     let lang_evidence = lang_evidence.min(LANG_CAP);
 
-    // Commit-history transition: only credit *rising* Rust share (real migration).
     let mut history_evidence = 0.0f64;
     if history.strong_transition {
         history_evidence += 0.20;
@@ -102,21 +66,12 @@ pub fn score(
     let history_evidence = history_evidence.min(HISTORY_CAP);
 
     let kind = classify(candidate, analysis, history);
+    let mut confidence = (text_evidence + lang_evidence + history_evidence).clamp(0.0, 1.0);
 
-    let mut confidence =
-        (text_evidence + lang_evidence + history_evidence).clamp(0.0, 1.0);
-
-    // Rewrites are the headline category: nudge them slightly ahead of otherwise
-    // comparable replacements. Applied before the cap below so a no-displaced
-    // rewrite still can't exceed REPLACEMENT_REWRITE_CAP.
     if kind == ProjectKind::Rewrite {
         confidence = (confidence + REWRITE_CONFIDENCE_BONUS).min(1.0);
     }
 
-    // Without a real displaced language, only strong replacement/migration
-    // signals justify surfacing the project; incidental "rewrite in Rust"
-    // discovery hits (e.g. helix) are capped below the default min-confidence
-    // filter.
     if !has_displaced {
         let cap = if has_strong_rewrite_signal(candidate) {
             REPLACEMENT_REWRITE_CAP
@@ -126,25 +81,18 @@ pub fn score(
         confidence = confidence.min(cap);
     }
 
-    // Projects with no genuine cross-language provenance are dropped: force
-    // confidence to zero so the min-confidence filter (scan) skips storing them
-    // and reclassify deletes them, keeping the site free of native-Rust noise
-    // and Rust-crate compatibility shims.
     if kind == ProjectKind::Neither {
         confidence = 0.0;
     }
 
     let original_language = sanitize_original_language(
-        analysis
-            .original_language
-            .clone()
-            .or_else(|| {
-                if history.strong_transition {
-                    history.from_language.clone()
-                } else {
-                    None
-                }
-            }),
+        analysis.original_language.clone().or_else(|| {
+            if history.strong_transition {
+                history.from_language.clone()
+            } else {
+                None
+            }
+        }),
     );
 
     let name = candidate
@@ -160,6 +108,20 @@ pub fn score(
         candidate.html_url.clone()
     };
 
+    let rewrite_prs = select_rewrite_prs(candidate);
+    let rewrite_pr = rewrite_prs.first().cloned();
+
+    let (history_from_language, history_rust_before, history_rust_after) =
+        if history.strong_transition {
+            (
+                history.from_language.clone(),
+                history.rust_pct_before,
+                history.rust_pct_after,
+            )
+        } else {
+            (None, None, None)
+        };
+
     Project {
         name,
         repo_url: repo_url.clone(),
@@ -171,8 +133,8 @@ pub fn score(
         original_language,
         rust_percentage: round2(analysis.rust_percentage),
         confidence: round2(confidence),
-        rewrite_pr: select_rewrite_pr(candidate),
-        rewrite_prs: select_rewrite_prs(candidate),
+        rewrite_pr,
+        rewrite_prs,
         unsafe_percentage: None,
         project_kind: kind.as_str().to_string(),
         named_origin: named_origin(candidate),
@@ -182,27 +144,11 @@ pub fn score(
         ai_assist_score: enrichment.ai_assist_score,
         rewrite_duration_days: enrichment.rewrite_duration_days,
         commit_count: enrichment.commit_count,
-        history_from_language: if history.strong_transition {
-            history.from_language.clone()
-        } else {
-            None
-        },
-        history_rust_before: if history.strong_transition {
-            history.rust_pct_before
-        } else {
-            None
-        },
-        history_rust_after: if history.strong_transition {
-            history.rust_pct_after
-        } else {
-            None
-        },
+        history_from_language,
+        history_rust_before,
+        history_rust_after,
         transition_magnitude: history.transition_magnitude,
-        total_commits_analyzed: if history.total_commits > 0 {
-            Some(history.total_commits)
-        } else {
-            None
-        },
+        total_commits_analyzed: (history.total_commits > 0).then_some(history.total_commits),
         history_status: None,
         history_error: None,
         history_attempted_at: None,
@@ -215,15 +161,14 @@ pub fn score(
     }
 }
 
-/// Collect rewrite/migration PRs. Earliest PR number is treated as primary
-/// (epic rewrite landings usually precede follow-up migrations).
+/// Collect rewrite/migration PRs. Earliest PR number is primary.
 fn select_rewrite_prs(candidate: &Candidate) -> Vec<RewritePr> {
     let mut scored: Vec<(u64, RewritePr)> = candidate
         .signals
         .iter()
         .filter(|s| s.kind == "pull-request")
         .filter_map(|s| {
-            let title = signal_title(&s.detail);
+            let title = signal_title_body(&s.detail).to_string();
             if pr_relevance(&title) <= 0 {
                 return None;
             }
@@ -252,15 +197,10 @@ fn select_rewrite_prs(candidate: &Candidate) -> Vec<RewritePr> {
     out
 }
 
-fn select_rewrite_pr(candidate: &Candidate) -> Option<RewritePr> {
-    select_rewrite_prs(candidate).into_iter().next()
-}
-
 fn pr_number(url: &str) -> Option<u64> {
     url.rsplit('/').next()?.parse().ok()
 }
 
-/// Keyword-based relevance for a PR title indicating rewrite / migration work.
 fn pr_relevance(title: &str) -> i32 {
     let t = title.to_lowercase();
     let mut score = 0;
@@ -292,13 +232,6 @@ fn pr_relevance(title: &str) -> i32 {
     score
 }
 
-/// Recover the raw issue/PR title from a signal `detail` of the form
-/// `"<label>: <title>"`, falling back to the whole detail if unsplittable.
-fn signal_title(detail: &str) -> String {
-    signal_title_body(detail).to_string()
-}
-
-/// Choose the most explanatory source link for the detection.
 fn primary_source(candidate: &Candidate) -> Option<String> {
     for kind in ["repo-search", "pull-request", "issue"] {
         if let Some(sig) = candidate.signals.iter().find(|s| s.kind == kind) {
@@ -308,7 +241,6 @@ fn primary_source(candidate: &Candidate) -> Option<String> {
     candidate.signals.first().map(|s| s.url.clone())
 }
 
-/// Never emit Rust or noise languages as the displaced original.
 fn sanitize_original_language(lang: Option<String>) -> Option<String> {
     lang.filter(|l| !l.eq_ignore_ascii_case("rust"))
         .filter(|l| crate::detect::commits::is_real_application_language(l))
@@ -351,9 +283,6 @@ mod tests {
 
         assert!(project.original_language.is_none());
         assert_ne!(project.original_language.as_deref(), Some("Rust"));
-        // The guardrail: an all-Rust editor with no displaced language and only a
-        // bare "rewrite in Rust" discovery hit stays below the min-confidence
-        // filter, so it never surfaces as a bogus rewrite regardless of label.
         assert!(
             project.confidence < DEFAULT_MIN_CONFIDENCE,
             "expected confidence below {}, got {}",
@@ -386,8 +315,6 @@ mod tests {
             "2026-01-01T00:00:00Z",
         );
 
-        // Without commit history, README + displaced-language snapshot is not
-        // enough for Rewrite under the commit-analysis gate.
         assert_eq!(project.project_kind, "replacement");
         assert_eq!(project.original_language.as_deref(), Some("C"));
         assert!(project.confidence >= DEFAULT_MIN_CONFIDENCE);
@@ -452,9 +379,17 @@ mod tests {
         assert_eq!(prs.len(), 2);
         assert_eq!(prs[0].url, "https://github.com/oven-sh/bun/pull/30412");
         assert_eq!(prs[1].url, "https://github.com/oven-sh/bun/pull/30698");
+        let project = score(
+            &c,
+            &commits::analyze(&c),
+            &CommitEnrichment::default(),
+            &HistoryAnalysis::default(),
+            "2026-01-01T00:00:00Z",
+        );
+        assert_eq!(project.rewrite_prs.len(), 2);
         assert_eq!(
-            select_rewrite_pr(&c).unwrap().url,
-            "https://github.com/oven-sh/bun/pull/30412"
+            project.rewrite_pr.as_ref().map(|p| p.url.as_str()),
+            Some("https://github.com/oven-sh/bun/pull/30412")
         );
     }
 }

@@ -13,6 +13,7 @@ mod detect;
 mod exemplars;
 mod geiger;
 mod github;
+mod origins;
 mod site;
 mod store;
 mod types;
@@ -226,12 +227,7 @@ async fn scan(db_path: &str, args: ScanArgs) -> Result<()> {
             HistoryAnalysis::default()
         };
 
-        let enrichment = history
-            .enrichment
-            .lines_added
-            .is_some()
-            .then(|| history.enrichment.clone())
-            .unwrap_or_default();
+        let enrichment = history_enrichment(&history);
 
         let now = chrono::Utc::now().to_rfc3339();
         let mut project = score::score(&candidate, &analysis, &enrichment, &history, &now);
@@ -310,17 +306,9 @@ async fn resolve_measure_unsafe(requested: bool) -> bool {
     }
 }
 
-/// Re-run classification + scoring over the rows already in the database,
-/// without hitting the network. This lets a changed heuristic (e.g. the
-/// rewrite-vs-replacement taxonomy) take effect on real scan data without a
-/// fresh `scan` (which would require a `GITHUB_TOKEN`).
-///
-/// Everything the scorer needs is already persisted: the description and raw
-/// signals feed the textual classifier, and `rust_percentage` /
-/// `original_language` reconstruct the language analysis. The one field not
-/// stored verbatim is whether Rust was the single largest language; we
-/// approximate `rust_is_primary` as "no displaced language, or Rust holds a
-/// majority", which is faithful for the classifier and scorer.
+/// Re-derive kind/confidence from stored rows (no network). Reconstructs the
+/// scorer inputs from persisted fields; `rust_is_primary` is approximated as
+/// "no displaced language, or Rust ≥ 50%".
 fn reclassify(db_path: &str) -> Result<()> {
     let store = Store::open(db_path)?;
     let projects = store.all()?;
@@ -331,13 +319,9 @@ fn reclassify(db_path: &str) -> Result<()> {
     let mut replacements = 0usize;
     let mut dropped = 0usize;
     for project in &projects {
-        let candidate = candidate_from_project(project);
-        let analysis = analysis_from_project(project);
         let enrichment = enrichment_from_project(project);
         let history = history_from_project(project);
-
-        let mut rescored = score::score(&candidate, &analysis, &enrichment, &history, &now);
-        // Preserve history timestamps; only the derived fields should change.
+        let mut rescored = rescore(project, &enrichment, &history, &now);
         rescored.first_detected = project.first_detected.clone();
         rescored.last_seen = project.last_seen.clone();
 
@@ -368,9 +352,6 @@ fn reclassify(db_path: &str) -> Result<()> {
     Ok(())
 }
 
-/// Rebuild a [`Candidate`] from a stored [`Project`] for re-scoring. Only the
-/// fields the scorer/classifier read are populated; `languages` is left empty
-/// because scoring consumes the pre-computed [`LanguageAnalysis`] instead.
 fn candidate_from_project(p: &Project) -> Candidate {
     let full_name = p
         .repo_url
@@ -392,7 +373,6 @@ fn candidate_from_project(p: &Project) -> Candidate {
     }
 }
 
-/// Reconstruct the language analysis from stored composition fields.
 fn analysis_from_project(p: &Project) -> LanguageAnalysis {
     LanguageAnalysis {
         rust_percentage: p.rust_percentage,
@@ -401,7 +381,6 @@ fn analysis_from_project(p: &Project) -> LanguageAnalysis {
     }
 }
 
-/// Reconstruct commit-enrichment metrics from stored fields.
 fn enrichment_from_project(p: &Project) -> CommitEnrichment {
     CommitEnrichment {
         lines_added: p.lines_added,
@@ -410,6 +389,14 @@ fn enrichment_from_project(p: &Project) -> CommitEnrichment {
         ai_assist_score: p.ai_assist_score,
         rewrite_duration_days: p.rewrite_duration_days,
         commit_count: p.commit_count,
+    }
+}
+
+fn history_enrichment(history: &HistoryAnalysis) -> CommitEnrichment {
+    if history.enrichment.lines_added.is_some() {
+        history.enrichment.clone()
+    } else {
+        CommitEnrichment::default()
     }
 }
 
@@ -430,9 +417,24 @@ fn history_from_project(p: &Project) -> HistoryAnalysis {
     }
 }
 
+fn rescore(
+    p: &Project,
+    enrichment: &CommitEnrichment,
+    history: &HistoryAnalysis,
+    now: &str,
+) -> Project {
+    score::score(
+        &candidate_from_project(p),
+        &analysis_from_project(p),
+        enrichment,
+        history,
+        now,
+    )
+}
+
 async fn backfill_history(db_path: &str, args: BackfillArgs) -> Result<()> {
     let shard = parse_shard(args.shard.as_deref())?;
-    // Shard workers each own a private DB copy — skip the exclusive lock.
+    // Shard workers own a private DB copy — skip the exclusive lock.
     let _lock = if shard.is_some() {
         None
     } else {
@@ -495,8 +497,7 @@ async fn backfill_history(db_path: &str, args: BackfillArgs) -> Result<()> {
         let needs_geiger =
             measure_unsafe && analysis.rust_is_primary && project.unsafe_percentage.is_none();
 
-        // Geiger-only pass for repos already enriched but never measured.
-        // Skip exemplar monorepos — usually workspace roots where geiger fails.
+        // Already enriched: optional geiger-only pass (skip exemplar monorepos).
         if history_ok {
             if needs_geiger && !exemplars::is_exemplar(&project.repo_url, &exemplar_set) {
                 info!(
@@ -555,15 +556,13 @@ async fn backfill_history(db_path: &str, args: BackfillArgs) -> Result<()> {
             continue;
         }
 
-        let candidate = candidate_from_project(&project);
-        let analysis = analysis_from_project(&project);
         let enrichment = if history.enrichment.lines_added.is_some() {
             history.enrichment.clone()
         } else {
             enrichment_from_project(&project)
         };
 
-        let mut rescored = score::score(&candidate, &analysis, &enrichment, &history, &now);
+        let mut rescored = rescore(&project, &enrichment, &history, &now);
         rescored.first_detected = project.first_detected.clone();
         rescored.last_seen = project.last_seen.clone();
         rescored.history_status = Some("ok".into());
@@ -642,7 +641,6 @@ fn backfill_pending(
     true
 }
 
-/// Fetch curated exemplars from GitHub, score them, and run macro history analysis.
 async fn scan_exemplars(db_path: &str, args: ScanExemplarsArgs) -> Result<()> {
     let store = Store::open(db_path)?;
     let gh = GitHub::new()?;
@@ -697,13 +695,7 @@ async fn scan_exemplars(db_path: &str, args: ScanExemplarsArgs) -> Result<()> {
             HistoryAnalysis::default()
         };
 
-        let enrichment = history
-            .enrichment
-            .lines_added
-            .is_some()
-            .then(|| history.enrichment.clone())
-            .unwrap_or_default();
-
+        let enrichment = history_enrichment(&history);
         let mut project = score::score(&candidate, &analysis, &enrichment, &history, &now);
         if let Some(first) = store.first_detected(&project.repo_url)? {
             project.first_detected = first;
@@ -738,12 +730,10 @@ async fn scan_exemplars(db_path: &str, args: ScanExemplarsArgs) -> Result<()> {
     Ok(())
 }
 
-/// True when transition analysis already completed successfully for this row.
 fn history_already_ok(p: &Project) -> bool {
     p.history_status.as_deref() == Some("ok")
 }
 
-/// Parse `INDEX/TOTAL` (0-based index).
 fn parse_shard(raw: Option<&str>) -> Result<Option<(u32, u32)>> {
     let Some(raw) = raw else {
         return Ok(None);
@@ -758,7 +748,6 @@ fn parse_shard(raw: Option<&str>) -> Result<Option<(u32, u32)>> {
     Ok(Some((index, total)))
 }
 
-/// Stable FNV-1a shard assignment so parallel runners partition without overlap.
 fn shard_owns(repo_url: &str, index: u32, total: u32) -> bool {
     let mut hash: u64 = 0xcbf29ce484222325;
     for byte in repo_url.as_bytes() {
@@ -768,7 +757,6 @@ fn shard_owns(repo_url: &str, index: u32, total: u32) -> bool {
     (hash % u64::from(total)) as u32 == index
 }
 
-/// Prefer the row with successful history, else the newest attempt.
 fn prefer_enriched(a: &Project, b: &Project) -> Project {
     let rank = |p: &Project| -> (u8, String) {
         let status = match p.history_status.as_deref() {
@@ -932,6 +920,9 @@ fn build_site(db_path: &str, args: BuildSiteArgs) -> Result<()> {
 
     for p in &mut projects {
         p.exemplar = exemplars::is_exemplar(&p.repo_url, &exemplar_set);
+        if let Some(origin) = origins::lookup(&p.repo_url) {
+            p.named_origin = Some(origin);
+        }
     }
 
     site::build(&args.out, &projects)?;

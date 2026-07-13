@@ -132,8 +132,7 @@ fn log_contains_commits(raw: &str) -> bool {
     raw.lines().any(|l| l.contains('\0'))
 }
 
-/// Walk commit history oldest-first with per-file numstat lines.
-pub async fn log_numstat_chronological(dir: &Path, limit: Duration) -> Option<String> {
+async fn log_numstat_chronological(dir: &Path, limit: Duration) -> Option<String> {
     let args = [
         "log",
         "--reverse",

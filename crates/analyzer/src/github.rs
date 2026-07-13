@@ -195,41 +195,59 @@ impl GitHub {
         query: &str,
         max_pages: u32,
     ) -> Result<Vec<RepoItem>> {
-        let mut out = Vec::new();
-        for page in 1..=max_pages {
-            let url = format!(
-                "{API_ROOT}/search/repositories?q={}&sort=stars&order=desc&per_page=100&page={page}",
-                urlencoding::encode(query)
-            );
-            let resp = self.get(&url).await?;
-            let parsed: RepoSearchResponse = resp.json().await.context("parse repo search")?;
-            let count = parsed.items.len();
-            out.extend(parsed.items);
-            if count < 100 {
-                break;
-            }
-        }
-        debug!(query, results = out.len(), "repo search complete");
-        Ok(out)
+        let items = self
+            .search_collect::<RepoSearchResponse, _>(
+                "repositories",
+                query,
+                "sort=stars&order=desc",
+                max_pages,
+                |r| r.items,
+            )
+            .await?;
+        debug!(query, results = items.len(), "repo search complete");
+        Ok(items)
     }
 
     /// Search issues and pull requests. Returns up to `max_pages * 100` results.
     pub async fn search_issues(&self, query: &str, max_pages: u32) -> Result<Vec<IssueItem>> {
+        let items = self
+            .search_collect::<IssueSearchResponse, _>("issues", query, "", max_pages, |r| r.items)
+            .await?;
+        debug!(query, results = items.len(), "issue search complete");
+        Ok(items)
+    }
+
+    async fn search_collect<Resp, Item>(
+        &self,
+        endpoint: &str,
+        query: &str,
+        extra: &str,
+        max_pages: u32,
+        extract: impl Fn(Resp) -> Vec<Item>,
+    ) -> Result<Vec<Item>>
+    where
+        Resp: serde::de::DeserializeOwned,
+    {
         let mut out = Vec::new();
+        let extra = if extra.is_empty() {
+            String::new()
+        } else {
+            format!("&{extra}")
+        };
         for page in 1..=max_pages {
             let url = format!(
-                "{API_ROOT}/search/issues?q={}&per_page=100&page={page}",
+                "{API_ROOT}/search/{endpoint}?q={}{extra}&per_page=100&page={page}",
                 urlencoding::encode(query)
             );
             let resp = self.get(&url).await?;
-            let parsed: IssueSearchResponse = resp.json().await.context("parse issue search")?;
-            let count = parsed.items.len();
-            out.extend(parsed.items);
+            let parsed: Resp = resp.json().await.with_context(|| format!("parse {endpoint} search"))?;
+            let batch = extract(parsed);
+            let count = batch.len();
+            out.extend(batch);
             if count < 100 {
                 break;
             }
         }
-        debug!(query, results = out.len(), "issue search complete");
         Ok(out)
     }
 
