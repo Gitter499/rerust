@@ -99,7 +99,7 @@
     .ferris.f5 { top: 45%;    left: -30px;  width: 92px;  transform: rotate(8deg);   opacity: 0.22; }
     .ferris.f6 { top: 60%;    right: -26px; width: 108px; transform: rotate(-22deg); opacity: 0.23; }
 
-    .wrap { position: relative; z-index: 1; max-width: 2100px; margin: 0 auto; padding: 48px 24px 32px; }
+    .wrap { position: relative; z-index: 1; max-width: 2100px; margin: 0 auto; padding: 48px 24px 32px; padding-left: max(24px, env(safe-area-inset-left)); padding-right: max(24px, env(safe-area-inset-right)); padding-bottom: max(32px, env(safe-area-inset-bottom)); }
     /* Header: logo (left) · filters (center) · stats chip (right). */
     .topbar {
       display: grid;
@@ -161,22 +161,46 @@
           "hero stats"
           "controls controls";
       }
-      .controls { justify-self: center; }
+      .controls { justify-self: stretch; width: 100%; }
     }
     @media (max-width: 600px) {
-      .logo-lockup { height: 48px; }
+      .logo-lockup { height: 44px; }
+      .wrap { padding: 20px 14px 28px; padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
       .topbar {
         grid-template-columns: 1fr;
         grid-template-areas:
           "hero"
           "controls"
           "stats";
-        justify-items: center;
+        justify-items: stretch;
         text-align: center;
+        gap: 10px;
+        margin-bottom: 12px;
       }
       header.hero { justify-self: center; }
-      .top-corner { justify-self: center; align-items: center; }
-      .site-stats { white-space: normal; text-align: center; }
+      .top-corner {
+        justify-self: stretch; align-items: stretch;
+        flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 8px;
+      }
+      .site-stats { white-space: normal; text-align: center; justify-content: center; }
+      .repo-badge { justify-content: center; }
+      .controls {
+        flex-direction: column; align-items: stretch; gap: 8px;
+      }
+      .filter-icon { display: none; }
+      .search, select, .count-pill {
+        width: 100%; max-width: none;
+        font-size: 16px; /* avoid iOS focus zoom */
+        min-height: 44px;
+      }
+      .count-pill { display: flex; align-items: center; justify-content: center; }
+      /* Fewer Ferris peeks — less clutter on small screens. */
+      .ferris.f3, .ferris.f5, .ferris.f6 { display: none; }
+      .ferris.f2 { width: 56px; opacity: 0.18; }
+      .ferris.f4 { width: 72px; opacity: 0.16; }
+      .diff-bg { gap: 20px; padding: 0 8px; }
+      .diff-col { flex-basis: 220px; }
+      .diff-inner { font-size: 11px; opacity: 0.28; }
     }
 
     .controls {
@@ -186,7 +210,7 @@
     }
     .filter-icon { width: 15px; height: 15px; color: var(--muted); flex: none; }
     .search {
-      width: 190px; font-family: inherit;
+      width: 190px; max-width: 100%; font-family: inherit;
       background: var(--bg-elev); border: 1px solid var(--border); color: var(--text);
       padding: 6px 9px; border-radius: 2px; font-size: 12px; outline: none;
     }
@@ -323,6 +347,37 @@
     /* Collapsed-only rewrite PR — hide when expanded (detail panel owns it). */
     .card.expanded .rewrite-pr.collapsed-only { display: none; }
     @media (max-width: 640px) {
+      .grid { row-gap: 20px; padding-top: 14px; }
+      .card {
+        min-height: 0;
+        margin-top: 10px;
+      }
+      .card-body { padding: 16px 14px 14px; gap: 10px; }
+      .name { font-size: 20px; }
+      .stars { font-size: 15px; }
+      .desc {
+        font-size: 13px;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .kind-bookmark { font-size: 10px; padding: 3px 7px 3px 6px; }
+      .metrics { gap: 10px; }
+      .metric { font-size: 12px; }
+      /* Keep collapsed cards short: only the primary rewrite PR. */
+      .rewrite-prs .rewrite-pr:nth-child(n+2) { display: none; }
+      .rewrite-pr { padding: 6px 8px; font-size: 12px; }
+      .card.expanded .card-body {
+        padding: 20px 14px 18px;
+        padding-bottom: max(18px, env(safe-area-inset-bottom));
+      }
+      .card-close {
+        top: 10px; right: 10px;
+        width: 40px; height: 40px;
+      }
+      .detail-hero-rust { font-size: 18px; }
+      .detail-section { padding: 12px; }
       .detail-layout {
         grid-template-columns: 1fr;
         grid-template-areas:
@@ -331,7 +386,11 @@
           "activity"
           "ai"
           "pr";
+        gap: 10px;
       }
+      .pager { gap: 4px; margin-top: 16px; }
+      .pg-btn { min-width: 40px; height: 40px; font-size: 13px; }
+      .pg-btn.pg-nav { padding: 0 10px; }
     }
     .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; padding-top: 4px; }
     .name { min-width: 0; font-size: 26px; font-weight: 700; letter-spacing: -0.01em; word-break: break-word; }
@@ -696,7 +755,7 @@
         <p class="site-stats" aria-label="Dataset coverage">
           <strong>236</strong><span>projects tracked</span>
           <span class="sep" aria-hidden="true">&middot;</span>
-          <span>2026-07-13 18:15 UTC</span>
+          <span>2026-07-13 18:48 UTC</span>
         </p>
       </div>
     </div>
@@ -1108,10 +1167,18 @@
 
     // Size the expanded panel to its content, capped by the viewport.
     function targetRect(card) {
-      const padY = Math.max(20, Math.min(36, window.innerHeight * 0.05));
-      const padX = Math.max(16, Math.min(32, window.innerWidth * 0.04));
-      const maxW = Math.min(window.innerWidth - padX * 2, 720);
-      const maxH = Math.min(window.innerHeight - padY * 2, Math.floor(window.innerHeight * 0.88));
+      const narrow = window.innerWidth <= 640;
+      const padY = narrow
+        ? Math.max(8, Math.min(16, window.innerHeight * 0.02))
+        : Math.max(20, Math.min(36, window.innerHeight * 0.05));
+      const padX = narrow ? 8 : Math.max(16, Math.min(32, window.innerWidth * 0.04));
+      const maxW = narrow
+        ? window.innerWidth - padX * 2
+        : Math.min(window.innerWidth - padX * 2, 720);
+      const maxH = Math.min(
+        window.innerHeight - padY * 2,
+        Math.floor(window.innerHeight * (narrow ? 0.94 : 0.88))
+      );
       const left = (window.innerWidth - maxW) / 2;
 
       const prev = {
@@ -1424,9 +1491,13 @@
     // Build a compact page-number sequence with ellipses for large page counts:
     // always show first/last and a window around the current page.
     function pageList(cur, total) {
-      if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+      const narrow = window.innerWidth <= 640;
+      const maxDirect = narrow ? 5 : 7;
+      if (total <= maxDirect) return Array.from({ length: total }, (_, i) => i + 1);
+      const windowSize = narrow ? 0 : 1;
       const out = [1];
-      const left = Math.max(2, cur - 1), right = Math.min(total - 1, cur + 1);
+      const left = Math.max(2, cur - windowSize);
+      const right = Math.min(total - 1, cur + windowSize);
       if (left > 2) out.push("\u2026");
       for (let i = left; i <= right; i++) out.push(i);
       if (right < total - 1) out.push("\u2026");
@@ -1437,13 +1508,16 @@
     function renderPager(totalPages) {
       if (totalPages <= 1) { pager.innerHTML = ""; pager.style.display = "none"; return; }
       pager.style.display = "flex";
-      let html = `<button class="pg-btn pg-nav" data-page="${page - 1}" ${page === 1 ? "disabled" : ""} aria-label="Previous page">\u2039 Prev</button>`;
+      const narrow = window.innerWidth <= 640;
+      const prev = narrow ? "\u2039" : "\u2039 Prev";
+      const next = narrow ? "\u203a" : "Next \u203a";
+      let html = `<button class="pg-btn pg-nav" data-page="${page - 1}" ${page === 1 ? "disabled" : ""} aria-label="Previous page">${prev}</button>`;
       for (const it of pageList(page, totalPages)) {
         html += it === "\u2026"
           ? `<span class="pg-ellipsis">\u2026</span>`
           : `<button class="pg-btn pg-num${it === page ? " active" : ""}" data-page="${it}"${it === page ? ' aria-current="page"' : ""}>${it}</button>`;
       }
-      html += `<button class="pg-btn pg-nav" data-page="${page + 1}" ${page === totalPages ? "disabled" : ""} aria-label="Next page">Next \u203a</button>`;
+      html += `<button class="pg-btn pg-nav" data-page="${page + 1}" ${page === totalPages ? "disabled" : ""} aria-label="Next page">${next}</button>`;
       pager.innerHTML = html;
     }
 
