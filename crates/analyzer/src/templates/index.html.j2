@@ -685,12 +685,17 @@
       display: flex; flex-wrap: wrap; gap: 6px;
     }
     .agent-chip {
-      display: inline-flex; align-items: center;
-      padding: 3px 8px; border-radius: 2px;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 8px 3px 3px; border-radius: 2px;
       font-size: 11px; font-weight: 700; letter-spacing: 0.02em;
       color: #ffe7b3;
       background: rgba(240, 169, 47, 0.14);
       border: 1px solid rgba(240, 169, 47, 0.35);
+    }
+    .agent-chip img {
+      width: 18px; height: 18px; border-radius: 2px;
+      flex: none; background: rgba(0,0,0,0.25);
+      object-fit: cover;
     }
     .detail-agents-empty {
       color: #9a7f86; font-size: 12px; font-style: italic;
@@ -1026,6 +1031,27 @@
       const delPct = 100 - addPct;
       const ai = p.ai_assist_score != null ? Math.round(p.ai_assist_score * 100) : null;
       const agents = Array.isArray(p.ai_agents) ? p.ai_agents.filter(Boolean) : [];
+      const AGENT_GITHUB = {
+        "Cursor": "cursor",
+        "Claude": "anthropics",
+        "Copilot": "copilot-swe-agent",
+        "Codex": "openai",
+        "ChatGPT": "openai",
+        "Gemini": "google-gemini",
+        "Devin": "cognition-ai",
+        "Aider": "Aider-AI",
+        "Windsurf": "Exafunction",
+        "Amazon Q": "aws",
+        "Sweep": "sweepai",
+        "OpenCode": "opencode-ai",
+      };
+      function agentChip(name) {
+        const login = AGENT_GITHUB[name];
+        const avatar = login
+          ? `<img src="https://github.com/${encodeURIComponent(login)}.png?size=36" alt="" width="18" height="18" loading="lazy" decoding="async" onerror="this.remove()" />`
+          : "";
+        return `<span class="agent-chip">${avatar}${escapeHtml(name)}</span>`;
+      }
       const hasHistory = p.history_rust_before != null && p.history_rust_after != null;
       const startRust = hasHistory ? Math.round(Number(p.history_rust_before)) : null;
       const endRust = hasHistory ? Math.round(Number(p.history_rust_after)) : null;
@@ -1074,9 +1100,7 @@
       const agentsBlock = agents.length
         ? `<div class="detail-agents">
              <div class="detail-agents-label">Agents</div>
-             <div class="detail-agent-list">${agents.map((a) =>
-               `<span class="agent-chip">${escapeHtml(a)}</span>`
-             ).join("")}</div>
+             <div class="detail-agent-list">${agents.map(agentChip).join("")}</div>
            </div>`
         : `<div class="detail-agents">
              <div class="detail-agents-label">Agents</div>
