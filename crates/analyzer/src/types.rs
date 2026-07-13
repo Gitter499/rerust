@@ -69,6 +69,9 @@ pub struct Project {
     pub rewrite_velocity: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ai_assist_score: Option<f64>,
+    /// AI coding agents credited via git `Co-authored-by` trailers.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ai_agents: Vec<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rewrite_duration_days: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

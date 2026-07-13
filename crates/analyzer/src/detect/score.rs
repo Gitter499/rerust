@@ -142,6 +142,7 @@ pub fn score(
         lines_removed: enrichment.lines_removed,
         rewrite_velocity: enrichment.rewrite_velocity,
         ai_assist_score: enrichment.ai_assist_score,
+        ai_agents: enrichment.ai_agents.clone(),
         rewrite_duration_days: enrichment.rewrite_duration_days,
         commit_count: enrichment.commit_count,
         history_from_language,

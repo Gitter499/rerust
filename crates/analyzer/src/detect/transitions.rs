@@ -188,7 +188,7 @@ pub fn analyze_commits_with_sample_points(
         && late_net_lines >= MIN_NET_LINES;
 
     let window = transition_window_commits(commits, &samples);
-    let enrichment = enrichment_from_window(&window);
+    let enrichment = enrichment_from_window(&window, commits);
 
     HistoryAnalysis {
         enrichment,
@@ -365,9 +365,11 @@ fn transition_churn(c: &CommitRecord) -> u64 {
     rust_added.saturating_add(other_removed)
 }
 
-fn enrichment_from_window(window: &[&CommitRecord]) -> CommitEnrichment {
+fn enrichment_from_window(window: &[&CommitRecord], all: &[CommitRecord]) -> CommitEnrichment {
     if window.is_empty() {
-        return CommitEnrichment::default();
+        let mut empty = CommitEnrichment::default();
+        empty.ai_agents = super::enrich::detect_ai_agents(all);
+        return empty;
     }
 
     let lines_added: u64 = window
@@ -390,6 +392,7 @@ fn enrichment_from_window(window: &[&CommitRecord]) -> CommitEnrichment {
         min_ts,
         max_ts,
         window,
+        all,
     )
 }
 
@@ -406,6 +409,7 @@ mod tests {
         CommitRecord {
             timestamp: ts,
             subject: "work".into(),
+            coauthors: Vec::new(),
             files: files
                 .into_iter()
                 .map(|(p, a, r)| FileChange {

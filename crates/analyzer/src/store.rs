@@ -18,7 +18,7 @@ const PROJECT_COLS: &str = r#"
     history_from_language, history_rust_before, history_rust_after,
     transition_magnitude, total_commits_analyzed,
     history_status, history_error, history_attempted_at, history_attempts,
-    rewrite_prs
+    rewrite_prs, ai_agents
 "#;
 
 pub struct Store {
@@ -65,7 +65,8 @@ impl Store {
                 history_status TEXT,
                 history_error TEXT,
                 history_attempted_at TEXT,
-                history_attempts INTEGER
+                history_attempts INTEGER,
+                ai_agents TEXT NOT NULL DEFAULT '[]'
             );
             CREATE INDEX IF NOT EXISTS idx_projects_confidence ON projects(confidence DESC);
             CREATE INDEX IF NOT EXISTS idx_projects_stars ON projects(stars DESC);
@@ -99,6 +100,7 @@ impl Store {
             "history_error TEXT",
             "history_attempted_at TEXT",
             "history_attempts INTEGER",
+            "ai_agents TEXT NOT NULL DEFAULT '[]'",
         ] {
             add_column_if_missing(&conn, "projects", column)?;
         }
@@ -110,6 +112,7 @@ impl Store {
         let signals_json = serde_json::to_string(&project.signals)?;
         let rewrite_prs = project.effective_rewrite_prs();
         let rewrite_prs_json = serde_json::to_string(&rewrite_prs)?;
+        let ai_agents_json = serde_json::to_string(&project.ai_agents)?;
         let rewrite_pr_title = rewrite_prs.first().map(|r| r.title.as_str());
         let rewrite_pr_url = rewrite_prs.first().map(|r| r.url.as_str());
         self.conn
@@ -124,8 +127,9 @@ impl Store {
                     ai_assist_score, rewrite_duration_days, commit_count,
                     history_from_language, history_rust_before, history_rust_after,
                     transition_magnitude, total_commits_analyzed,
-                    history_status, history_error, history_attempted_at, history_attempts
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35)
+                    history_status, history_error, history_attempted_at, history_attempts,
+                    ai_agents
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35, ?36)
                 ON CONFLICT(repo_url) DO UPDATE SET
                     name              = excluded.name,
                     description       = excluded.description,
@@ -159,7 +163,12 @@ impl Store {
                     history_status = COALESCE(excluded.history_status, projects.history_status),
                     history_error = COALESCE(excluded.history_error, projects.history_error),
                     history_attempted_at = COALESCE(excluded.history_attempted_at, projects.history_attempted_at),
-                    history_attempts = COALESCE(excluded.history_attempts, projects.history_attempts)
+                    history_attempts = COALESCE(excluded.history_attempts, projects.history_attempts),
+                    ai_agents = CASE
+                        WHEN excluded.ai_agents IS NOT NULL AND excluded.ai_agents != '[]'
+                        THEN excluded.ai_agents
+                        ELSE projects.ai_agents
+                    END
                 "#,
                 rusqlite::params![
                     project.repo_url,
@@ -197,6 +206,7 @@ impl Store {
                     project.history_error,
                     project.history_attempted_at,
                     project.history_attempts,
+                    ai_agents_json,
                 ],
             )
             .with_context(|| format!("upsert {}", project.repo_url))?;
@@ -283,6 +293,9 @@ impl Store {
             }
         }
         let rewrite_pr = rewrite_prs.first().cloned();
+        let ai_agents_json: String =
+            row.get::<_, Option<String>>(35)?.unwrap_or_else(|| "[]".into());
+        let ai_agents: Vec<String> = serde_json::from_str(&ai_agents_json).unwrap_or_default();
         Ok(Project {
             name: row.get(0)?,
             repo_url: row.get(1)?,
@@ -312,6 +325,7 @@ impl Store {
             history_error: row.get(31)?,
             history_attempted_at: row.get(32)?,
             history_attempts: row.get(33)?,
+            ai_agents,
             source_url: row.get(8)?,
             first_detected: row.get(9)?,
             last_seen: row.get(10)?,

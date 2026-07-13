@@ -387,14 +387,16 @@ fn enrichment_from_project(p: &Project) -> CommitEnrichment {
         lines_removed: p.lines_removed,
         rewrite_velocity: p.rewrite_velocity,
         ai_assist_score: p.ai_assist_score,
+        ai_agents: p.ai_agents.clone(),
         rewrite_duration_days: p.rewrite_duration_days,
         commit_count: p.commit_count,
     }
 }
 
 fn history_enrichment(history: &HistoryAnalysis) -> CommitEnrichment {
-    if history.enrichment.lines_added.is_some() {
-        history.enrichment.clone()
+    let e = &history.enrichment;
+    if e.lines_added.is_some() || !e.ai_agents.is_empty() {
+        e.clone()
     } else {
         CommitEnrichment::default()
     }
@@ -874,6 +876,9 @@ async fn history(args: HistoryArgs) -> Result<()> {
         }
         if let Some(ai) = e.ai_assist_score {
             println!("  AI-assist:     {ai:.2} (experimental)");
+        }
+        if !e.ai_agents.is_empty() {
+            println!("  AI agents:     {}", e.ai_agents.join(", "));
         }
     }
     Ok(())

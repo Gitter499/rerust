@@ -29,6 +29,8 @@ pub struct FileChange {
 pub struct CommitRecord {
     pub timestamp: i64,
     pub subject: String,
+    /// Raw `Co-authored-by` trailer values (`Name <email>`), if any.
+    pub coauthors: Vec<String>,
     pub files: Vec<FileChange>,
 }
 
@@ -133,11 +135,13 @@ fn log_contains_commits(raw: &str) -> bool {
 }
 
 async fn log_numstat_chronological(dir: &Path, limit: Duration) -> Option<String> {
+    // Trailers are emitted on the same logical record as the subject so the
+    // numstat parser stays line-oriented (bodies with newlines would break it).
     let args = [
         "log",
         "--reverse",
         "--numstat",
-        "--format=%H%x00%ct%x00%s",
+        "--format=%H%x00%ct%x00%s%x00%(trailers:key=Co-authored-by,valueonly,separator=%x01)",
     ];
     match run_git(&args, Some(dir), limit).await {
         GitRun::Ok(out) if out.status.success() => {
@@ -225,15 +229,26 @@ pub fn parse_numstat_log(raw: &str) -> Vec<CommitRecord> {
             continue;
         }
         if let Some((_hash, rest)) = line.split_once('\0') {
-            let parts: Vec<&str> = rest.splitn(2, '\0').collect();
-            if parts.len() == 2 {
+            let parts: Vec<&str> = rest.splitn(3, '\0').collect();
+            if parts.len() >= 2 {
                 if let Ok(ts) = parts[0].parse::<i64>() {
                     if let Some(c) = current.take() {
                         commits.push(c);
                     }
+                    let coauthors = parts
+                        .get(2)
+                        .map(|raw| {
+                            raw.split('\u{1}')
+                                .map(str::trim)
+                                .filter(|s| !s.is_empty())
+                                .map(str::to_string)
+                                .collect()
+                        })
+                        .unwrap_or_default();
                     current = Some(CommitRecord {
                         timestamp: ts,
                         subject: parts[1].to_string(),
+                        coauthors,
                         files: Vec::new(),
                     });
                     continue;
@@ -335,17 +350,25 @@ mod tests {
     #[test]
     fn parses_numstat_with_binary_dash() {
         let raw = "\
-abc\x001700000000\x00initial
+abc\x001700000000\x00initial\x00
 100\t0\tmain.rs
-def\x001700100000\x00add logo
+def\x001700100000\x00add logo\x00Cursor Agent <cursoragent@cursor.com>\x01Claude <noreply@anthropic.com>
 -\t-\tlogo.png
 10\t5\tlib.py
 ";
         let commits = parse_numstat_log(raw);
         assert_eq!(commits.len(), 2);
+        assert!(commits[0].coauthors.is_empty());
         assert_eq!(commits[0].files.len(), 1);
         assert_eq!(commits[1].files.len(), 2);
         assert_eq!(commits[1].files[1].path, "lib.py");
+        assert_eq!(
+            commits[1].coauthors,
+            vec![
+                "Cursor Agent <cursoragent@cursor.com>".to_string(),
+                "Claude <noreply@anthropic.com>".to_string(),
+            ]
+        );
     }
 
     #[test]
