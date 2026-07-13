@@ -117,7 +117,7 @@ start_scan_exemplars_bg() {
 start_scan_exemplars_bg
 
 for round in $(seq 1 "$MAX_ROUNDS"); do
-  pending=$(sqlite3 "$DB" "SELECT COUNT(*) FROM projects WHERE history_status IS NULL OR history_status='skipped_huge' OR (history_status='failed' AND COALESCE(history_attempts,0) < 3) OR (history_status='ok' AND unsafe_percentage IS NULL AND (original_language IS NULL OR rust_percentage >= 50.0));")
+  pending=$(sqlite3 "$DB" "SELECT COUNT(*) FROM projects WHERE history_status IS NULL OR (history_status='failed' AND COALESCE(history_attempts,0) < 3) OR (history_status='ok' AND unsafe_percentage IS NULL AND (original_language IS NULL OR rust_percentage >= 50.0));")
   echo "$(date -u +%H:%M:%S) round=$round pending≈$pending scan_pid=${SCAN_PID:-none}" >>"$LOG"
   if [[ "${pending:-0}" -eq 0 ]]; then
     if [[ -n "$SCAN_PID" ]] && kill -0 "$SCAN_PID" 2>/dev/null; then

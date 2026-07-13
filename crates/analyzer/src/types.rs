@@ -29,18 +29,8 @@ pub struct Candidate {
     pub open_prs: u64,
     /// Byte breakdown per language from the GitHub languages endpoint.
     pub languages: Vec<(String, u64)>,
-    pub created_at: Option<String>,
-    pub pushed_at: Option<String>,
     /// Accumulated evidence for this candidate.
     pub signals: Vec<Signal>,
-    /// Share of unsafe Rust (0.0 - 100.0) measured by cargo-geiger, when the
-    /// opt-in `--measure-unsafe` scan runs. `None` when not measured.
-    pub unsafe_percentage: Option<f64>,
-    /// The specific prior project this repo displaces or reimplements, parsed
-    /// from migration/competitor phrasing ("port of X", "alternative to X",
-    /// "drop-in replacement for X"). Drives structural-provenance
-    /// classification. `None` when no named predecessor is detected.
-    pub named_origin: Option<String>,
 }
 
 /// The pull request that best represents the actual rewrite work, surfaced as
@@ -93,7 +83,7 @@ pub struct Project {
     /// and used by the provenance classifier. `None` when unknown.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub named_origin: Option<String>,
-    /// Total lines added during the rewrite window (`--enrich-commits`).
+    /// Total lines added during the rewrite window.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub lines_added: Option<u64>,
     /// Total lines removed during the rewrite window.
@@ -126,7 +116,7 @@ pub struct Project {
     /// Total commits walked during history analysis.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub total_commits_analyzed: Option<u32>,
-    /// Backfill outcome: `ok`, `failed`, `skipped_huge`, or unset (`None` = pending).
+    /// Backfill outcome: `ok`, `failed`, or unset (`None` = pending).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub history_status: Option<String>,
     /// Last backfill error message (truncated), when `history_status` is `failed`.

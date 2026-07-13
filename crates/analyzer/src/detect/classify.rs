@@ -1,38 +1,21 @@
 //! Structural-provenance classification: `Rewrite` / `Replacement` / `Neither`.
 //!
-//! Semantic intent (Rewrite is the primary focus):
-//!
-//!   * **Rewrite**: the *same shipping product* that previously ran in another
-//!     language was migrated to Rust for performance (Bun, Astro compiler,
-//!     React compiler, uutils/coreutils). Requires **identity continuity** —
-//!     this repo *is* that product — plus evidence of a real language migration.
-//!
-//!   * **Replacement**: a *new* Rust project that reimplements or competes with
-//!     an external tool (ripgrep vs grep, RuAnnoy vs annoy, cj vs jc). Includes
-//!     third-party "Rust port of X" when X is someone else's product.
-//!
-//!   * **Neither**: tutorials, toys, API shims, phrase bait with no provenance.
-//!
-//! Phrase lists alone are not enough: `"rewritten in Rust"` + rising history can
-//! describe a greenfield clone. Identity continuity is the gate for Rewrite.
+//! - **Rewrite**: same shipping product migrated to Rust (identity + rising-Rust history).
+//! - **Replacement**: new Rust tool / third-party port competing with an external product.
+//! - **Neither**: tutorials, toys, API shims, bare phrase bait.
 
 use crate::detect::commits::LanguageAnalysis;
 use crate::detect::transitions::HistoryAnalysis;
 use crate::types::Candidate;
 
-/// How a Rust project relates to the tool it descends from or competes with.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProjectKind {
-    /// Same shipping product migrated to Rust. Primary focus.
     Rewrite,
-    /// New independent Rust tool / third-party port competing with an external one.
     Replacement,
-    /// No genuine cross-language product story. Dropped from the site.
     Neither,
 }
 
 impl ProjectKind {
-    /// Stable string form stored in SQLite and serialized to the frontend.
     pub fn as_str(self) -> &'static str {
         match self {
             ProjectKind::Rewrite => "rewrite",
@@ -42,131 +25,77 @@ impl ProjectKind {
     }
 }
 
-/// Phrases implying the *same project's own codebase* was migrated to Rust.
-const IN_PLACE_MIGRATION_PHRASES: &[&str] = &[
-    "rewrite of",
-    "rewritten in rust",
-    "rewrite in rust",
-    "rewritten from",
-    "translated to rust",
-    "translation of",
-    "now written in rust",
-    "now in rust",
-    "migrated to rust",
-    "migration to rust",
-    "migrating to rust",
+// --- Phrase tables -----------------------------------------------------------
+
+const IN_PLACE: &[&str] = &[
+    "rewrite of", "rewritten in rust", "rewrite in rust", "rewritten from",
+    "translated to rust", "translation of", "now written in rust", "now in rust",
+    "migrated to rust", "migration to rust", "migrating to rust",
 ];
 
-/// Phrases implying a *new Rust repo* reimplements an external predecessor.
-const EXTERNAL_PORT_PHRASES: &[&str] = &[
-    "port of",
-    "rust port of",
-    "rust port",
-    "ported to rust",
-    "porting to rust",
-    "reimplementation of",
-    "reimplementation in rust",
-    "reimplemented in rust",
-    "reimplementing",
-    "pure-rust port",
-    "pure rust port",
+const EXTERNAL_PORT: &[&str] = &[
+    "port of", "rust port of", "rust port", "ported to rust", "porting to rust",
+    "reimplementation of", "reimplementation in rust", "reimplemented in rust",
+    "reimplementing", "pure-rust port", "pure rust port",
 ];
 
-/// Migration phrases that name a displaced source ("… of X").
-const TARGETED_MIGRATION_PHRASES: &[&str] = &[
-    "rewrite of",
-    "rewritten from",
-    "port of",
-    "rust port of",
-    "reimplementation of",
-    "reimplementation in rust of",
-    "translation of",
-];
-
-/// Competitor / stand-in framing → Replacement unless identity continuity holds.
-const COMPETITOR_TERMS: &[&str] = &[
-    "drop-in replacement",
-    "drop in replacement",
-    "alternative to",
-    "alternative for",
-    "replacement for",
-    "replacement of",
-    "replaces ",
-    "successor to",
-    "successor of",
-    "in place of",
-    "instead of",
-    "compatible with",
-    "clone of",
+const COMPETITOR: &[&str] = &[
+    "drop-in replacement", "drop in replacement", "alternative to", "alternative for",
+    "replacement for", "replacement of", "replaces ", "successor to", "successor of",
+    "in place of", "instead of", "compatible with", "clone of",
 ];
 
 const ORIGIN_MARKERS: &[&str] = &[
-    "reimplementation in rust of",
-    "reimplementation of",
-    "rust port of",
-    "port of",
-    "rewrite of",
-    "rewritten from",
-    "translation of",
-    "clone of",
-    "fork of",
-    "drop-in replacement for",
-    "drop-in replacement of",
-    "drop in replacement for",
-    "drop in replacement of",
-    "drop-in replacements for",
-    "drop-in replacements of",
-    "replacement for",
-    "replacement of",
-    "alternative to",
-    "alternative for",
-    "successor to",
-    "inspired by",
-    "based on",
-    "compatible with",
+    "reimplementation in rust of", "reimplementation of", "rust port of", "port of",
+    "rewrite of", "rewritten from", "translation of", "clone of", "fork of",
+    "drop-in replacement for", "drop-in replacement of", "drop in replacement for",
+    "drop in replacement of", "drop-in replacements for", "drop-in replacements of",
+    "replacement for", "replacement of", "alternative to", "alternative for",
+    "successor to", "inspired by", "based on", "compatible with",
 ];
 
 const ORIGIN_STOPS: &[&str] = &[
     ",", ".", ";", ":", "(", ")", "`", "\"", "/", "!", "?", "\n", " — ", " - ",
     " using ", " written ", " built ", " with ", " that ", " which ",
     " in rust", " and ", " for ",
-    // Discovery-signal boilerplate appended after description in combined text.
     " repo ", " mentions ", " describes ", " positions ", " is a ",
 ];
 
-const GLOBAL_API_MARKERS: &[&str] = &["std::", "::", "#[derive", "derive(", "assert_eq", "assert_ne"];
-
-const TARGET_API_MARKERS: &[&str] = &[
-    "rust's", "rust channel", "rust crate", "std::", "#[derive", "assert_eq",
+const API_MARKERS: &[&str] = &[
+    "std::", "::", "#[derive", "derive(", "assert_eq", "assert_ne",
+    "rust's", "rust channel", "rust crate",
 ];
 
-/// Tokens too generic to prove product identity.
 const IDENTITY_STOPWORDS: &[&str] = &[
     "rust", "rs", "next", "gen", "new", "the", "and", "for", "with", "from",
     "port", "rewrite", "rewritten", "replacement", "drop", "in", "of", "a", "an",
     "to", "in", "engine", "lib", "crate", "sdk", "cli", "app", "bot", "tool",
 ];
 
-fn has_named_migration_verb(text: &str) -> bool {
-    let gap_names_a_tool = |gap: &str| {
+fn any_phrase(text: &str, phrases: &[&str]) -> bool {
+    phrases.iter().any(|p| text.contains(p))
+}
+
+/// "rewrite <tool> in rust" / "port <tool> to rust" with a named gap.
+fn named_migration_verb(text: &str) -> bool {
+    let named_gap = |gap: &str| {
         let gap = gap.trim();
         !gap.is_empty() && gap != "in" && gap != "to"
     };
-    for verb in ["rewrite ", "rewriting ", "rewrote "] {
+    for (verb, end) in [
+        ("rewrite ", "in rust"),
+        ("rewriting ", "in rust"),
+        ("rewrote ", "in rust"),
+        ("port ", "to rust"),
+        ("porting ", "to rust"),
+        ("ported ", "to rust"),
+        ("migrate ", "to rust"),
+        ("migrating ", "to rust"),
+    ] {
         if let Some(i) = text.find(verb) {
             let after = &text[i + verb.len()..];
-            if let Some(j) = after.find("in rust") {
-                if gap_names_a_tool(&after[..j]) {
-                    return true;
-                }
-            }
-        }
-    }
-    for verb in ["port ", "porting ", "ported ", "migrate ", "migrating "] {
-        if let Some(i) = text.find(verb) {
-            let after = &text[i + verb.len()..];
-            if let Some(j) = after.find("to rust") {
-                if gap_names_a_tool(&after[..j]) {
+            if let Some(j) = after.find(end) {
+                if named_gap(&after[..j]) {
                     return true;
                 }
             }
@@ -175,23 +104,26 @@ fn has_named_migration_verb(text: &str) -> bool {
     false
 }
 
-fn has_in_place_migration_wording(text: &str) -> bool {
-    IN_PLACE_MIGRATION_PHRASES
-        .iter()
-        .any(|p| text.contains(p))
-        || has_named_migration_verb(text)
+fn in_place(text: &str) -> bool {
+    any_phrase(text, IN_PLACE) || named_migration_verb(text)
 }
 
-fn has_external_port_wording(text: &str) -> bool {
-    EXTERNAL_PORT_PHRASES.iter().any(|p| text.contains(p))
+fn external_port(text: &str) -> bool {
+    any_phrase(text, EXTERNAL_PORT)
 }
 
-fn has_targeted_migration(text: &str) -> bool {
-    TARGETED_MIGRATION_PHRASES.iter().any(|p| text.contains(p)) || has_named_migration_verb(text)
+fn competitor(text: &str) -> bool {
+    any_phrase(text, COMPETITOR)
 }
 
-fn has_competitor_framing(text: &str) -> bool {
-    COMPETITOR_TERMS.iter().any(|t| text.contains(t))
+fn targeted_migration(text: &str) -> bool {
+    any_phrase(
+        text,
+        &[
+            "rewrite of", "rewritten from", "port of", "rust port of",
+            "reimplementation of", "reimplementation in rust of", "translation of",
+        ],
+    ) || named_migration_verb(text)
 }
 
 fn combined_text(candidate: &Candidate) -> String {
@@ -203,12 +135,12 @@ fn combined_text(candidate: &Candidate) -> String {
     text
 }
 
-/// Parse the specific prior project a repo displaces or reimplements.
+// --- Named origin ------------------------------------------------------------
+
 pub fn extract_named_origin(text: &str) -> Option<String> {
     for marker in ORIGIN_MARKERS {
         if let Some(i) = text.find(marker) {
-            let after = &text[i + marker.len()..];
-            if let Some(name) = clean_origin(after) {
+            if let Some(name) = clean_origin(&text[i + marker.len()..]) {
                 return Some(name);
             }
         }
@@ -232,11 +164,7 @@ fn clean_origin(after: &str) -> Option<String> {
             name = rest.to_string();
         }
     }
-    let name: String = name
-        .split_whitespace()
-        .take(5)
-        .collect::<Vec<_>>()
-        .join(" ");
+    let name: String = name.split_whitespace().take(5).collect::<Vec<_>>().join(" ");
     if name.is_empty() {
         None
     } else {
@@ -244,7 +172,6 @@ fn clean_origin(after: &str) -> Option<String> {
     }
 }
 
-/// Generic discovery signal text that must not pollute origin parsing.
 fn is_generic_origin_signal(detail: &str) -> bool {
     let d = detail.to_lowercase();
     d.contains("named project")
@@ -256,9 +183,6 @@ fn is_generic_origin_signal(detail: &str) -> bool {
         || d.contains("repo positions itself")
 }
 
-/// Extract origin from description first, then non-generic signals individually.
-/// Never concatenates description + signals — that caused trailing boilerplate
-/// (e.g. "gnu coreutils repo describes a") to pollute the chip label.
 fn extract_origin_from_candidate(candidate: &Candidate) -> Option<String> {
     if let Some(desc) = candidate.description.as_deref() {
         if let Some(origin) = extract_named_origin(&desc.to_lowercase()) {
@@ -276,46 +200,28 @@ fn extract_origin_from_candidate(candidate: &Candidate) -> Option<String> {
     None
 }
 
-/// The named origin for a candidate.
 pub fn named_origin(candidate: &Candidate) -> Option<String> {
-    extract_origin_from_candidate(candidate).or_else(|| {
-        candidate
-            .named_origin
-            .as_ref()
-            .filter(|o| !o.is_empty())
-            .cloned()
-    })
+    extract_origin_from_candidate(candidate)
 }
 
-fn target_is_rust_api(origin: &str) -> bool {
-    let o = origin.to_lowercase();
-    TARGET_API_MARKERS.iter().any(|m| o.contains(m))
-        || GLOBAL_API_MARKERS.iter().any(|m| o.contains(m))
+fn rust_api(text: &str) -> bool {
+    API_MARKERS.iter().any(|m| text.contains(m))
 }
 
-fn mentions_rust_api(text: &str) -> bool {
-    GLOBAL_API_MARKERS.iter().any(|m| text.contains(m))
-}
-
-/// True when the repo advertises replacing/migrating a *specific* existing tool.
+/// True when the repo advertises replacing/migrating a specific existing tool.
 pub fn has_strong_rewrite_signal(candidate: &Candidate) -> bool {
-    let matches = |text: &str| {
-        has_competitor_framing(text)
-            || has_targeted_migration(text)
-            || has_in_place_migration_wording(text)
-    };
-
+    let matches = |text: &str| competitor(text) || targeted_migration(text) || in_place(text);
     let description = candidate.description.as_deref().unwrap_or("").to_lowercase();
     if matches(&description) {
         return true;
     }
-
     candidate.signals.iter().any(|s| {
         (s.kind == "repo-search" || s.kind == "pull-request") && matches(&s.detail.to_lowercase())
     })
 }
 
-/// Significant tokens from a product / repo name (lowercase, stopwords removed).
+// --- Identity continuity -----------------------------------------------------
+
 fn significant_tokens(s: &str) -> Vec<String> {
     s.to_lowercase()
         .split(|c: char| !c.is_alphanumeric())
@@ -325,7 +231,6 @@ fn significant_tokens(s: &str) -> Vec<String> {
         .collect()
 }
 
-/// Repo product slug: last path segment of `owner/name`, stripped of common suffixes.
 fn product_slug(candidate: &Candidate) -> String {
     let name = candidate
         .full_name
@@ -343,7 +248,31 @@ fn product_slug(candidate: &Candidate) -> String {
     lower
 }
 
-/// Extract a product name that appears immediately before "rewritten/rewrite … rust".
+fn compact_alnum(s: &str) -> String {
+    s.chars().filter(|c| c.is_alphanumeric()).collect()
+}
+
+/// Prefix/equality compact match — never `contains`, which false-positives clones.
+fn compact_identity(a: &str, b: &str, min: usize) -> bool {
+    let ca = compact_alnum(a);
+    let cb = compact_alnum(b);
+    ca.len() >= min
+        && cb.len() >= min
+        && (ca == cb || ca.starts_with(&cb) || cb.starts_with(&ca))
+}
+
+fn tokens_overlap(a: &[String], b: &[String]) -> bool {
+    a.iter().any(|t| {
+        b.iter().any(|u| {
+            if t == u {
+                return true;
+            }
+            // Substantial stems only; require prefix relation (not PathPicker ⊂ FastPathPicker).
+            t.len() >= 6 && u.len() >= 6 && (u.starts_with(t.as_str()) || t.starts_with(u.as_str()))
+        })
+    })
+}
+
 fn product_before_rewrite_phrase(text: &str) -> Option<String> {
     for marker in [
         " rewritten in rust",
@@ -351,55 +280,56 @@ fn product_before_rewrite_phrase(text: &str) -> Option<String> {
         " rewritten from",
         " migrated to rust",
     ] {
-        if let Some(i) = text.find(marker) {
-            let before = &text[..i];
-            // Take the last 1–4 significant words as the product phrase.
-            let words: Vec<&str> = before
-                .split_whitespace()
-                .rev()
-                .take(4)
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
-                .collect();
-            // Drop leading filler ("a", "the", "next-generation", …).
-            let mut start = 0;
-            while start < words.len() {
-                let w = words[start].trim_matches(|c: char| !c.is_alphanumeric());
-                if IDENTITY_STOPWORDS.contains(&w)
-                    || matches!(
-                        w,
-                        "high" | "performance" | "lightning" | "fast" | "experimental"
-                            | "next-generation" | "next" | "generation"
-                    )
-                {
-                    start += 1;
-                    continue;
-                }
-                break;
-            }
-            if start >= words.len() {
+        let Some(i) = text.find(marker) else { continue };
+        let words: Vec<&str> = text[..i]
+            .split_whitespace()
+            .rev()
+            .take(4)
+            .collect::<Vec<_>>()
+            .into_iter()
+            .rev()
+            .collect();
+        let mut start = 0;
+        while start < words.len() {
+            let w = words[start].trim_matches(|c: char| !c.is_alphanumeric());
+            if IDENTITY_STOPWORDS.contains(&w)
+                || matches!(
+                    w,
+                    "high" | "performance" | "lightning" | "fast" | "experimental"
+                        | "next-generation" | "next" | "generation"
+                )
+            {
+                start += 1;
                 continue;
             }
-            let phrase = words[start..]
-                .iter()
-                .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric() && c != '-'))
-                .filter(|w| !w.is_empty())
-                .collect::<Vec<_>>()
-                .join(" ");
-            if !phrase.is_empty() {
-                return Some(phrase);
-            }
+            break;
+        }
+        if start >= words.len() {
+            continue;
+        }
+        let phrase = words[start..]
+            .iter()
+            .map(|w| w.trim_matches(|c: char| !c.is_alphanumeric() && c != '-'))
+            .filter(|w| !w.is_empty())
+            .collect::<Vec<_>>()
+            .join(" ");
+        if !phrase.is_empty() {
+            return Some(phrase);
         }
     }
     None
 }
 
-/// True when named origin / rewrite-phrase product overlaps this repo's identity.
-///
-/// Issue/PR signals **corroborate** migration work but do not alone prove that
-/// this repo *is* the shipping product being rewritten (wishlist issues and
-/// "rewrite it in Rust" memes fire constantly on unrelated repos).
+fn names_match_product(name: &str, slug: &str, slug_tokens: &[String], owner_tokens: &[String]) -> bool {
+    let name_tokens = significant_tokens(name);
+    tokens_overlap(&name_tokens, slug_tokens)
+        || tokens_overlap(&name_tokens, owner_tokens)
+        || name.replace(' ', "-").contains(slug)
+        || slug.contains(&name.replace(' ', "-"))
+        || compact_identity(name, slug, 5)
+}
+
+/// True when this repo *is* the shipping product being migrated (not a third-party port).
 pub fn has_identity_continuity(candidate: &Candidate) -> bool {
     let text = combined_text(candidate);
     let slug = product_slug(candidate);
@@ -412,98 +342,59 @@ pub fn has_identity_continuity(candidate: &Candidate) -> bool {
         .to_lowercase();
     let owner_tokens = significant_tokens(&owner);
 
-    // 1. Product named before "rewritten in Rust" matches this repo.
     if let Some(product) = product_before_rewrite_phrase(&text) {
-        let product_tokens = significant_tokens(&product);
-        if tokens_overlap(&product_tokens, &slug_tokens)
-            || tokens_overlap(&product_tokens, &owner_tokens)
-            || product.replace(' ', "-").contains(&slug)
-            || slug.contains(&product.replace(' ', "-"))
-        {
-            return true;
-        }
-        let compact_product: String = product.chars().filter(|c| c.is_alphanumeric()).collect();
-        let compact_slug: String = slug.chars().filter(|c| c.is_alphanumeric()).collect();
-        // Prefix/equality only — NOT slug.contains(product), which false-positives
-        // clones like FastPathPicker ⊃ PathPicker.
-        if compact_product.len() >= 5
-            && (compact_slug == compact_product
-                || compact_slug.starts_with(&compact_product)
-                || compact_product.starts_with(&compact_slug))
-        {
+        if names_match_product(&product, &slug, &slug_tokens, &owner_tokens) {
             return true;
         }
     }
 
-    // 2. Named origin overlaps this product (same product, not external target).
     if let Some(origin) = named_origin(candidate) {
         let origin_tokens = significant_tokens(&origin);
         if tokens_overlap(&origin_tokens, &slug_tokens)
             || tokens_overlap(&origin_tokens, &owner_tokens)
-        {
-            return true;
-        }
-        let compact_origin: String = origin.chars().filter(|c| c.is_alphanumeric()).collect();
-        let compact_slug: String = slug.chars().filter(|c| c.is_alphanumeric()).collect();
-        if compact_origin.len() >= 6
-            && compact_slug.len() >= 6
-            && (compact_slug == compact_origin
-                || compact_slug.starts_with(&compact_origin)
-                || compact_origin.starts_with(&compact_slug))
+            || compact_identity(&origin, &slug, 6)
         {
             return true;
         }
     }
 
-    // 3. "rewrite of <this product>" style where origin marker target = slug.
     for marker in ["rewrite of ", "rewritten from "] {
         if let Some(i) = text.find(marker) {
             if let Some(name) = clean_origin(&text[i + marker.len()..]) {
-                let name_tokens = significant_tokens(&name);
-                if tokens_overlap(&name_tokens, &slug_tokens) {
+                if tokens_overlap(&significant_tokens(&name), &slug_tokens) {
                     return true;
                 }
             }
         }
     }
 
-    // 4. Issue/PR title references this product *and* discusses migration.
-    //    Discovery labels like "PR titled about rewriting in Rust: …" are stripped
-    //    so boilerplate cannot alone grant identity.
-    if candidate.signals.iter().any(|s| {
+    candidate.signals.iter().any(|s| {
         (s.kind == "pull-request" || s.kind == "issue")
             && signal_is_product_migration(&s.detail, &slug, &slug_tokens, &owner_tokens)
-    }) {
-        return true;
-    }
-
-    false
+    })
 }
 
-/// Strip discovery boilerplate ("PR titled …: ") and return the human title.
-fn signal_title_body(detail: &str) -> &str {
-    if let Some((_, title)) = detail.split_once(": ") {
-        title
-    } else {
-        detail
-    }
+pub(crate) fn signal_title_body(detail: &str) -> &str {
+    detail
+        .split_once(": ")
+        .map(|(_, t)| t)
+        .filter(|t| !t.is_empty())
+        .unwrap_or(detail)
 }
 
 fn signal_is_migration_discussion(detail: &str) -> bool {
     let title = signal_title_body(detail).to_lowercase();
-    let has_rust = title.contains("rust");
-    let has_migration = title.contains("rewrite")
-        || title.contains("rewriting")
-        || title.contains("rewritten")
-        || title.contains("port to")
-        || title.contains("ported to")
-        || title.contains("migrate")
-        || title.contains("migrating")
-        || title.contains("migrated");
-    has_rust && has_migration
+    title.contains("rust")
+        && (title.contains("rewrite")
+            || title.contains("rewriting")
+            || title.contains("rewritten")
+            || title.contains("port to")
+            || title.contains("ported to")
+            || title.contains("migrate")
+            || title.contains("migrating")
+            || title.contains("migrated"))
 }
 
-/// Migration discussion whose title also names this product (not a wishlist meme).
 fn signal_is_product_migration(
     detail: &str,
     slug: &str,
@@ -518,15 +409,11 @@ fn signal_is_product_migration(
     if tokens_overlap(&title_tokens, slug_tokens) || tokens_overlap(&title_tokens, owner_tokens) {
         return true;
     }
-    let compact_slug: String = slug.chars().filter(|c| c.is_alphanumeric()).collect();
-    if compact_slug.len() >= 4 {
-        let compact_title: String = title.chars().filter(|c| c.is_alphanumeric()).collect();
-        if compact_title.contains(&compact_slug) {
-            return true;
-        }
+    let compact_slug = compact_alnum(slug);
+    if compact_slug.len() >= 4 && compact_alnum(&title).contains(&compact_slug) {
+        return true;
     }
-    // Whole-product rewrite phrasing without naming an external target.
-    // Exclude the classic "rewrite it in Rust" meme / wishlist phrasing.
+    // Exclude RIIR meme / wishlist phrasing.
     if title.contains("rewrite it in")
         || title.contains("rewritten in rust?")
         || title.contains("riir")
@@ -541,44 +428,26 @@ fn signal_is_product_migration(
         || title.contains("migrate the codebase")
 }
 
-fn tokens_overlap(a: &[String], b: &[String]) -> bool {
-    a.iter().any(|t| {
-        b.iter().any(|u| {
-            if t == u {
-                return true;
-            }
-            // Allow longer token to contain shorter only when the shorter is a
-            // substantial stem (≥6) AND the longer does not merely *prefix-extend*
-            // with a clone qualifier — actually: require mutual prefix or equality
-            // for substring cases to avoid PathPicker ⊂ FastPathPicker.
-            let min = 6;
-            if t.len() >= min && u.len() >= min {
-                u.starts_with(t.as_str()) || t.starts_with(u.as_str())
-            } else {
-                false
-            }
-        })
-    })
+fn real_displaced_language(analysis: &LanguageAnalysis) -> bool {
+    analysis
+        .original_language
+        .as_deref()
+        .is_some_and(crate::detect::commits::is_real_application_language)
 }
 
-/// True when displaced language is real application code (not Makefile/Shell noise).
-fn real_displaced_language(analysis: &LanguageAnalysis) -> bool {
-    match analysis.original_language.as_deref() {
-        Some(lang) => crate::detect::commits::is_real_application_language(lang),
-        None => false,
-    }
+fn strong_history(history: &HistoryAnalysis) -> bool {
+    history.strong_transition
+        && history
+            .from_language
+            .as_deref()
+            .is_some_and(crate::detect::commits::is_real_application_language)
 }
 
 /// Classify under identity-continuity provenance.
 ///
-/// Rules (precision-first):
-///   1. Neither — Rust API/crate shim.
-///   2. Replacement — competitor / external-port framing **without** identity.
-///   3. Rewrite — identity continuity **and** commit-proven rising-Rust migration
-///      (`strong_history`). README/keyword claims alone are not enough: a repo
-///      that was always Rust is at best a Replacement.
-///   4. Replacement — external port / competitor with a named target (fallback).
-///   5. Neither — everything else.
+/// `Rewrite` ⟺ identity ∧ commit-proven rising-Rust history.
+/// Everything else with migration/competitor framing → `Replacement`.
+/// API shims / bare bait → `Neither`.
 pub fn classify(
     candidate: &Candidate,
     analysis: &LanguageAnalysis,
@@ -587,57 +456,39 @@ pub fn classify(
     let text = combined_text(candidate);
     let origin = named_origin(candidate);
     let identity = has_identity_continuity(candidate);
-    let in_place = has_in_place_migration_wording(&text);
-    let external_port = has_external_port_wording(&text);
-    let competitor = has_competitor_framing(&text);
+    let has_in_place = in_place(&text);
+    let has_external = external_port(&text);
+    let has_competitor = competitor(&text);
     let real_lang = real_displaced_language(analysis);
-    let strong_history = history.strong_transition
-        && history
-            .from_language
-            .as_deref()
-            .map(crate::detect::commits::is_real_application_language)
-            .unwrap_or(false);
+    let hist = strong_history(history);
+    let migration = has_in_place || has_external || has_competitor;
 
-    // 1. API shims.
-    if mentions_rust_api(&text) {
+    if rust_api(&text) || origin.as_deref().is_some_and(rust_api) {
         return ProjectKind::Neither;
     }
-    if let Some(o) = &origin {
-        if target_is_rust_api(o) {
-            return ProjectKind::Neither;
-        }
-    }
 
-    // 2. Competitor / third-party port without same-product identity → Replacement.
-    if (competitor || external_port) && !identity {
-        if origin.is_some() || real_lang || competitor {
-            return ProjectKind::Replacement;
-        }
-    }
-
-    // 3. Rewrite: same shipping product + commit-proven cross-language migration.
-    if strong_history && identity {
+    // Same product + proven X→Rust history.
+    if identity && hist {
         return ProjectKind::Rewrite;
     }
 
-    // Rising Rust history without product identity → third-party port / clone.
-    if strong_history && (in_place || external_port || competitor) && !identity {
+    // Competitor / third-party port / same-product claim without history.
+    if (has_competitor || has_external)
+        && !identity
+        && (origin.is_some() || real_lang || has_competitor)
+    {
         return ProjectKind::Replacement;
     }
-
-    // Same-product migration wording but commits show no real language shift
-    // (born-in-Rust reimplementation, README exaggeration, keyword discovery).
-    if identity && !strong_history && (in_place || external_port) {
+    if hist && migration && !identity {
         return ProjectKind::Replacement;
     }
-
-    // 4. Remaining competitor / port with a target.
-    if (external_port || competitor) && (origin.is_some() || real_lang || competitor) {
+    if identity && !hist && (has_in_place || has_external) {
         return ProjectKind::Replacement;
     }
-
-    // In-place wording without identity → not a rewrite of a shipping product.
-    if in_place && (real_lang || has_targeted_migration(&text)) && !identity {
+    if (has_external || has_competitor) && (origin.is_some() || real_lang || has_competitor) {
+        return ProjectKind::Replacement;
+    }
+    if has_in_place && (real_lang || targeted_migration(&text)) && !identity {
         return ProjectKind::Replacement;
     }
 
@@ -698,8 +549,6 @@ mod tests {
         }
     }
 
-    // --- Rewrite: identity + evidence ------------------------------------
-
     #[test]
     fn script_kit_same_product_with_history_is_rewrite() {
         let c = named(
@@ -755,15 +604,12 @@ mod tests {
             "Cross-platform Rust rewrite of the GNU coreutils",
         );
         let a = analysis(60.0, Some("C"), true);
-        // "coreutils" overlaps origin "gnu coreutils"
         assert!(has_identity_continuity(&c));
         assert_eq!(
             classify(&c, &a, &rising_rust_history("C")),
             ProjectKind::Rewrite
         );
     }
-
-    // --- Replacement: third-party / competitor ---------------------------
 
     #[test]
     fn wat_dropin_for_wakatime_is_replacement_even_with_history() {
@@ -822,10 +668,7 @@ mod tests {
             "ruvnet/rvFACE",
             "Rust port of Faceplugin's open-source Face-Recognition-SDK.",
         );
-        assert!(
-            !has_identity_continuity(&c),
-            "face ⊂ rvface must not count as identity"
-        );
+        assert!(!has_identity_continuity(&c));
         let a = analysis(60.0, Some("TypeScript"), true);
         assert_eq!(classify(&c, &a, &no_history()), ProjectKind::Replacement);
     }
@@ -867,11 +710,8 @@ mod tests {
         assert_eq!(classify(&c, &a, &no_history()), ProjectKind::Replacement);
     }
 
-    // --- Neither ---------------------------------------------------------
-
     #[test]
     fn wplusplus_toy_without_identity_is_neither_or_replacement() {
-        // Phrase bait + history but no shipping-product identity.
         let c = named(
             "sinisterMage/WPlusPlus",
             "A Python-style scripting language rewritten in Rust & LLVM.",
@@ -901,7 +741,6 @@ mod tests {
             total_commits: 31,
             ..Default::default()
         };
-        // Makefile is not a real application language → not Rewrite.
         assert_ne!(classify(&c, &a, &hist), ProjectKind::Rewrite);
     }
 
@@ -938,9 +777,7 @@ mod tests {
     fn coreutils_origin_ignores_signal_boilerplate() {
         let c = candidate(
             "Cross-platform Rust rewrite of the GNU coreutils",
-            vec![repo_signal(
-                "repo describes a rewrite of a named project",
-            )],
+            vec![repo_signal("repo describes a rewrite of a named project")],
         );
         assert_eq!(named_origin(&c).as_deref(), Some("gnu coreutils"));
     }
@@ -997,10 +834,7 @@ mod tests {
             url: "https://github.com/EnterpriseQualityCoding/FizzBuzzEnterpriseEdition/issues/1"
                 .into(),
         });
-        assert!(
-            !has_identity_continuity(&c),
-            "RIIR meme / wishlist must not grant identity"
-        );
+        assert!(!has_identity_continuity(&c));
         let a = analysis(0.0, Some("Java"), false);
         assert_ne!(classify(&c, &a, &no_history()), ProjectKind::Rewrite);
     }

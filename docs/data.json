@@ -139,41 +139,6 @@
     "exemplar": true
   },
   {
-    "name": "falkordb-rs-next-gen",
-    "repo_url": "https://github.com/falkordb/falkordb-rs-next-gen",
-    "description": "The next-generation, high-performance FalkorDB engine rewritten in Rust. A lightning-fast Graph Database powered by GraphBLAS sparse matrix algebra, purpose-built for Knowledge Graphs and GraphRAG.",
-    "stars": 26,
-    "forks": 3,
-    "open_issues": 44,
-    "open_prs": 23,
-    "original_language": "Python",
-    "rust_percentage": 44.24,
-    "confidence": 0.73,
-    "signals": [
-      {
-        "kind": "exemplar",
-        "detail": "curated exemplar rewrite (priority target)",
-        "url": "https://github.com/falkordb/falkordb-rs-next-gen"
-      }
-    ],
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "lines_added": 21119,
-    "lines_removed": 22062,
-    "rewrite_velocity": 43181.0,
-    "ai_assist_score": 0.57,
-    "rewrite_duration_days": 1,
-    "commit_count": 13,
-    "total_commits_analyzed": 2639,
-    "history_status": "ok",
-    "history_attempted_at": "2026-07-10T23:59:17.464156+00:00",
-    "history_attempts": 0,
-    "source_url": "https://github.com/falkordb/falkordb-rs-next-gen",
-    "first_detected": "2026-07-10T23:59:17.464156+00:00",
-    "last_seen": "2026-07-10T23:59:17.464156+00:00",
-    "exemplar": true
-  },
-  {
     "name": "kata-containers",
     "repo_url": "https://github.com/kata-containers/kata-containers",
     "description": "Kata Containers is an open source project and community working to build a standard implementation of lightweight Virtual Machines (VMs) that feel and perform like containers, but provide the workload isolation and security advantages of VMs. https://katacontainers.io/",
@@ -212,6 +177,41 @@
     "source_url": "https://github.com/kata-containers/kata-containers/issues/5350",
     "first_detected": "2026-07-08T18:57:48.676789+00:00",
     "last_seen": "2026-07-08T19:06:00.607916+00:00",
+    "exemplar": true
+  },
+  {
+    "name": "falkordb-rs-next-gen",
+    "repo_url": "https://github.com/falkordb/falkordb-rs-next-gen",
+    "description": "The next-generation, high-performance FalkorDB engine rewritten in Rust. A lightning-fast Graph Database powered by GraphBLAS sparse matrix algebra, purpose-built for Knowledge Graphs and GraphRAG.",
+    "stars": 26,
+    "forks": 3,
+    "open_issues": 44,
+    "open_prs": 23,
+    "original_language": "Python",
+    "rust_percentage": 44.24,
+    "confidence": 0.58,
+    "signals": [
+      {
+        "kind": "exemplar",
+        "detail": "curated exemplar rewrite (priority target)",
+        "url": "https://github.com/falkordb/falkordb-rs-next-gen"
+      }
+    ],
+    "unsafe_percentage": null,
+    "project_kind": "replacement",
+    "lines_added": 21119,
+    "lines_removed": 22062,
+    "rewrite_velocity": 43181.0,
+    "ai_assist_score": 0.57,
+    "rewrite_duration_days": 1,
+    "commit_count": 13,
+    "total_commits_analyzed": 2639,
+    "history_status": "ok",
+    "history_attempted_at": "2026-07-10T23:59:17.464156+00:00",
+    "history_attempts": 0,
+    "source_url": "https://github.com/falkordb/falkordb-rs-next-gen",
+    "first_detected": "2026-07-10T23:59:17.464156+00:00",
+    "last_seen": "2026-07-10T23:59:17.464156+00:00",
     "exemplar": true
   },
   {

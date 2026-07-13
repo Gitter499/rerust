@@ -242,12 +242,6 @@ pub async fn discover(gh: &GitHub, cfg: &DiscoveryConfig) -> Result<Vec<Candidat
                 entry.description = item.description.clone();
             }
             entry.stars = entry.stars.max(item.stargazers_count);
-            if entry.created_at.is_none() {
-                entry.created_at = item.created_at.clone();
-            }
-            if entry.pushed_at.is_none() {
-                entry.pushed_at = item.pushed_at.clone();
-            }
             push_signal(
                 entry,
                 Signal {

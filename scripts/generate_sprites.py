@@ -401,14 +401,11 @@ def main() -> None:
 
     lockup = build_logo_lockup()
 
-    write_png(OUT / "logo-32.png", logo)
     write_png(OUT / "logo-64.png", upscale(logo, 2))
     # 6x native scale (144px tall): crisp at 72px desktop / 48px mobile.
     write_png(OUT / "logo-lockup-144.png", upscale(lockup, 6))
     write_png(OUT / "favicon-32.png", upscale(favicon, 2))
     write_png(OUT / "favicon-16.png", favicon)
-    write_png(OUT / "icon-rewrite-16.png", rewrite)
-    write_png(OUT / "icon-replacement-16.png", replacement)
     write_png(OUT / "icon-rewrite-32.png", upscale(rewrite, 2))
     write_png(OUT / "icon-replacement-32.png", upscale(replacement, 2))
 

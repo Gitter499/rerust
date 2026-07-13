@@ -29,8 +29,6 @@ pub struct RepoItem {
     /// Combined count of open issues *and* open pull requests.
     #[serde(default)]
     pub open_issues_count: u64,
-    pub created_at: Option<String>,
-    pub pushed_at: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

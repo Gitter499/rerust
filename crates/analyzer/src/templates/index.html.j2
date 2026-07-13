@@ -33,7 +33,6 @@
       --rust: #CE412B;
       --rust-soft: #ff6a4d;
       --accent: #7aa2f7;
-      --good: #3ddc84;
       --shadow: 0 1px 0 rgba(255,255,255,0.03), 0 8px 24px rgba(0,0,0,0.4);
     }
     * { box-sizing: border-box; }
@@ -393,11 +392,6 @@
     .lang-ico {
       width: 19px; height: 19px; vertical-align: middle; margin-right: 6px;
       border-radius: 2px; background: #e6e9ef; padding: 1px; box-sizing: border-box;
-    }
-
-    /* Compact collapsed-state Rust share — merged into .shift strip when possible. */
-    .rust-share-chip {
-      display: none;
     }
 
     /* Row that carries the language shift and compact summary chips. */
@@ -801,14 +795,7 @@
       fork: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z"/></svg>',
       issue: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z"/><path fill="currentColor" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z"/></svg>',
       pr: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg>',
-      help: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm7.036-1.984c-.87 0-1.322.585-1.322 1.008a.75.75 0 0 1-1.5 0c0-1.418 1.354-2.508 2.822-2.508 1.492 0 2.858 1.03 2.858 2.5 0 1.235-.822 1.887-1.34 2.256-.192.137-.35.246-.46.353-.09.088-.106.137-.106.175v.5a.75.75 0 0 1-1.5 0v-.5c0-.577.29-1.02.62-1.34.24-.234.533-.437.746-.585l.055-.038c.517-.36.735-.588.735-1.021 0-.554-.532-1-1.358-1ZM8 12a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>',
       github: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.18.82.63-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.51-1.04 2.18-.82 2.18-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>',
-      // arrow-switch: fronts the REWRITE badge — a project migrated to Rust
-      // (identity continuity from another language).
-      arrows: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M4.177 7.823a.75.75 0 0 1 0 1.06L2.06 11h9.44a.75.75 0 0 1 0 1.5H2.06l2.117 2.117a.75.75 0 1 1-1.06 1.06L.47 12.53a.75.75 0 0 1 0-1.06l3.647-3.647a.75.75 0 0 1 1.06 0Zm7.646-7.646L15.47 3.824a.75.75 0 0 1 0 1.06L11.823 8.53a.75.75 0 0 1-1.06-1.06L12.88 5.354H3.44a.75.75 0 0 1 0-1.5h9.44l-2.117-2.117a.75.75 0 0 1 1.06-1.06Z"/></svg>',
-      // split: fronts the REPLACEMENT badge — an independent alternative/fork.
-      split: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M7.25 14.5V8.121L3.439 4.939a1.5 1.5 0 0 1 2.122-2.121L8 5.879l2.439-2.06a1.5 1.5 0 1 1 1.94 2.299L8.75 8.12V14.5a.75.75 0 0 1-1.5 0ZM4.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z"/></svg>',
-      // shield: fronts the unsafe-Rust percentage chip.
       shield: '<svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8.533.133a1.75 1.75 0 0 0-1.066 0l-5.25 1.68A1.75 1.75 0 0 0 1 3.48V7c0 1.566.32 3.182 1.303 4.682.983 1.498 2.585 2.813 5.032 3.855a1.7 1.7 0 0 0 1.33 0c2.447-1.042 4.049-2.357 5.032-3.855C14.68 10.182 15 8.566 15 7V3.48a1.75 1.75 0 0 0-1.217-1.667L8.533.133Z"/></svg>',
     };
 
@@ -927,13 +914,7 @@
            </section>`
         : "";
 
-      const rewritePrDetail = p.rewrite_pr && p.rewrite_pr.url
-        ? `<a class="rewrite-pr detail-pr-row" href="${escapeHtml(p.rewrite_pr.url)}" target="_blank" rel="noopener" title="${escapeHtml(p.rewrite_pr.title)}" onclick="event.stopPropagation()">
-             ${ICON.pr}
-             <span class="rp-label">Rewrite PR</span>
-             <span class="rp-title">${escapeHtml(truncate(p.rewrite_pr.title, 80))}</span>
-           </a>`
-        : "";
+      const rewritePrDetail = rewritePrLink(p, "");
 
       // Single-column layout when only one evidence section exists.
       const layoutClass = (churnSection && activitySection) ? "detail-layout"
@@ -971,8 +952,17 @@
       </div>`;
     }
 
-    function card(p, idx) {
-      const conf = Math.round((p.confidence || 0) * 100);
+    function rewritePrLink(p, extraClass) {
+      if (!p.rewrite_pr || !p.rewrite_pr.url) return "";
+      const cls = extraClass ? `rewrite-pr ${extraClass}` : "rewrite-pr";
+      return `<a class="${cls}" href="${escapeHtml(p.rewrite_pr.url)}" target="_blank" rel="noopener" title="${escapeHtml(p.rewrite_pr.title)}" onclick="event.stopPropagation()">
+             ${ICON.pr}
+             <span class="rp-label">Rewrite PR</span>
+             <span class="rp-title">${escapeHtml(truncate(p.rewrite_pr.title, 80))}</span>
+           </a>`;
+    }
+
+    function card(p) {
       const rustPct = (p.rust_percentage || 0).toFixed(0);
       const kindBadge = p.project_kind === "rewrite"
         ? `<span class="kind-bookmark kind-rewrite" title="The same project migrated to Rust — its own code rewritten/ported"><img src="assets/icon-rewrite-32.png" width="19" height="19" alt="" /> Rewrite</span>`
@@ -989,16 +979,9 @@
           ${metric(ICON.issue, p.open_issues, "Open issues")}
           ${metric(ICON.pr, p.open_prs, "Open pull requests")}
         </div>`;
-      // Collapsed preview of the rewrite PR (hidden via CSS when expanded).
-      const rewritePrCollapsed = p.rewrite_pr && p.rewrite_pr.url
-        ? `<a class="rewrite-pr collapsed-only" href="${escapeHtml(p.rewrite_pr.url)}" target="_blank" rel="noopener" title="${escapeHtml(p.rewrite_pr.title)}" onclick="event.stopPropagation()">
-             ${ICON.pr}
-             <span class="rp-label">Rewrite PR</span>
-             <span class="rp-title">${escapeHtml(truncate(p.rewrite_pr.title, 80))}</span>
-           </a>`
-        : "";
+      const rewritePrCollapsed = rewritePrLink(p, "collapsed-only");
       return `
-        <article class="card" data-idx="${idx}" tabindex="0" role="button" aria-expanded="false">
+        <article class="card" tabindex="0" role="button" aria-expanded="false">
           ${kindBadge}
           <div class="card-body">
             <div class="card-top">
@@ -1390,7 +1373,7 @@
       empty.style.display = "none";
       const start = (page - 1) * PAGE_SIZE;
       const end = Math.min(start + PAGE_SIZE, total);
-      grid.innerHTML = rows.slice(start, end).map((p, i) => card(p, i)).join("");
+      grid.innerHTML = rows.slice(start, end).map((p) => card(p)).join("");
       bindCards();
       countEl.textContent = `Showing ${start + 1}\u2013${end} of ${total}`;
       renderPager(totalPages);

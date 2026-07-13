@@ -25,7 +25,7 @@ use detect::commits::LanguageAnalysis;
 use detect::enrich::CommitEnrichment;
 use detect::heuristics::{self, DiscoveryConfig};
 use detect::transitions::{self, HistoryAnalysis};
-use detect::{commits, enrich, score};
+use detect::{commits, score};
 use github::GitHub;
 use store::Store;
 use types::{Candidate, Project, Signal};
@@ -57,6 +57,9 @@ enum Command {
     /// Fetch and score curated exemplar repos from `data/exemplars.txt`, then
     /// optionally run macro-commit history analysis on each.
     ScanExemplars(ScanExemplarsArgs),
+    /// Merge enrichment rows from shard databases into a base database
+    /// (preferring `history_status=ok`, then newest attempt).
+    MergeDb(MergeDbArgs),
 }
 
 #[derive(Args)]
@@ -78,12 +81,6 @@ struct ScanArgs {
     /// requires `cargo install cargo-geiger`. See the `geiger` module.
     #[arg(long, default_value_t = false)]
     measure_unsafe: bool,
-    /// Enrich projects with commit-history metrics (lines changed, velocity,
-    /// experimental AI-assist heuristic). Shallow-clones each repo; off by
-    /// default for scan speed. Superseded by [`--analyze-history`] unless you
-    /// want the legacy rewrite-window heuristic only.
-    #[arg(long, default_value_t = false)]
-    enrich_commits: bool,
     /// Walk full commit history and detect massive language transitions.
     /// Uses a blob-less clone + one `git log --numstat` pass. On by default;
     /// pass `--no-analyze-history` to skip (faster scans).
@@ -130,6 +127,10 @@ struct BackfillArgs {
     #[arg(long, default_value_t = true, action = clap::ArgAction::SetTrue)]
     #[arg(long = "no-measure-unsafe", action = clap::ArgAction::SetFalse)]
     measure_unsafe: bool,
+    /// Process only repos in this shard (`INDEX/TOTAL`, e.g. `3/8`). Enables
+    /// parallel backfill across Actions runners without lock contention.
+    #[arg(long, value_name = "INDEX/TOTAL")]
+    shard: Option<String>,
 }
 
 #[derive(Args)]
@@ -156,6 +157,16 @@ struct BuildSiteArgs {
     out: String,
 }
 
+#[derive(Args)]
+struct MergeDbArgs {
+    /// Destination database (updated in place).
+    #[arg(long)]
+    into: String,
+    /// Shard database paths produced by parallel `backfill-history --shard`.
+    #[arg(required = true)]
+    shards: Vec<String>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     tracing_subscriber::fmt()
@@ -173,6 +184,7 @@ async fn main() -> Result<()> {
         Command::History(args) => history(args).await,
         Command::BackfillHistory(args) => backfill_history(&cli.db, args).await,
         Command::ScanExemplars(args) => scan_exemplars(&cli.db, args).await,
+        Command::MergeDb(args) => merge_db(args),
     }
 }
 
@@ -189,66 +201,17 @@ async fn scan(db_path: &str, args: ScanArgs) -> Result<()> {
         max_candidates: args.max_candidates,
     };
 
-    // Unsafe measurement is opt-in and expensive; probe for the tool once so we
-    // can warn early and skip the per-repo work when it's unavailable.
-    let measure_unsafe = args.measure_unsafe && {
-        if geiger::is_available().await {
-            info!("cargo-geiger detected; will measure unsafe usage for primarily-Rust repos");
-            true
-        } else {
-            warn!("--measure-unsafe set but `cargo geiger` is unavailable; run `cargo install cargo-geiger`. Skipping unsafe measurement");
-            false
-        }
-    };
-
+    let measure_unsafe = resolve_measure_unsafe(args.measure_unsafe).await;
     let candidates = heuristics::discover(&gh, &cfg).await?;
     info!(count = candidates.len(), "enriching candidates");
 
     let mut stored = 0usize;
     for mut candidate in candidates {
-        // Always fetch repo details: even candidates that arrived via repo-search
-        // (and already carry stars) need forks/open_issues, which only the repo
-        // endpoint provides. This also fills metadata for issue/PR-only finds.
-        let needs_metadata = candidate.stars == 0 && candidate.description.is_none();
-        match gh.get_repo(&candidate.full_name).await {
-            Ok(repo) => {
-                if needs_metadata {
-                    candidate.html_url = repo.html_url;
-                    candidate.description = repo.description;
-                    candidate.created_at = repo.created_at;
-                    candidate.pushed_at = repo.pushed_at;
-                }
-                candidate.stars = candidate.stars.max(repo.stargazers_count);
-                candidate.forks = repo.forks_count;
-                // `open_issues_count` bundles issues and PRs; subtract PRs below.
-                candidate.open_issues = repo.open_issues_count;
-            }
-            Err(e) => {
-                if needs_metadata {
-                    warn!(repo = %candidate.full_name, error = %e, "skipping: repo lookup failed");
-                    continue;
-                }
-                warn!(repo = %candidate.full_name, error = %e, "repo detail lookup failed; metrics may be incomplete");
-            }
-        }
-
-        // Open PR count comes from a cheap single-result search query.
-        match gh.open_pr_count(&candidate.full_name).await {
-            Ok(prs) => {
-                candidate.open_prs = prs;
-                candidate.open_issues = candidate.open_issues.saturating_sub(prs);
-            }
-            Err(e) => warn!(repo = %candidate.full_name, error = %e, "open PR count lookup failed"),
-        }
-
-        // Language composition is the key confirmation signal.
-        match gh.get_languages(&candidate.full_name).await {
-            Ok(langs) => candidate.languages = langs,
-            Err(e) => warn!(repo = %candidate.full_name, error = %e, "language lookup failed"),
+        if !enrich_candidate_from_github(&gh, &mut candidate).await {
+            continue;
         }
 
         let analysis = commits::analyze(&candidate);
-
         let repo_url = if candidate.html_url.is_empty() {
             format!("https://github.com/{}", candidate.full_name)
         } else {
@@ -263,14 +226,12 @@ async fn scan(db_path: &str, args: ScanArgs) -> Result<()> {
             HistoryAnalysis::default()
         };
 
-        let enrichment = if args.enrich_commits {
-            info!(repo = %repo_url, "enriching commit history (legacy window)");
-            enrich::enrich_commits(&repo_url, geiger::DEFAULT_TIMEOUT).await
-        } else if history.enrichment.lines_added.is_some() {
-            history.enrichment.clone()
-        } else {
-            CommitEnrichment::default()
-        };
+        let enrichment = history
+            .enrichment
+            .lines_added
+            .is_some()
+            .then(|| history.enrichment.clone())
+            .unwrap_or_default();
 
         let now = chrono::Utc::now().to_rfc3339();
         let mut project = score::score(&candidate, &analysis, &enrichment, &history, &now);
@@ -279,14 +240,11 @@ async fn scan(db_path: &str, args: ScanArgs) -> Result<()> {
             continue;
         }
 
-        // Preserve the earliest detection timestamp across scans.
         let repo_url = project.repo_url.clone();
         if let Some(first) = store.first_detected(&repo_url)? {
             project.first_detected = first;
         }
 
-        // Only measure repos where Rust is the primary language: geiger needs a
-        // buildable cargo crate, and non-Rust-dominant repos rarely are one.
         if measure_unsafe && analysis.rust_is_primary {
             info!(repo = %repo_url, "measuring unsafe usage with cargo-geiger");
             project.unsafe_percentage =
@@ -299,6 +257,57 @@ async fn scan(db_path: &str, args: ScanArgs) -> Result<()> {
 
     info!(stored, "scan complete");
     Ok(())
+}
+
+/// Fetch repo metadata, open-PR count, and language bytes. Returns false when
+/// a metadata-less candidate cannot be looked up and should be skipped.
+async fn enrich_candidate_from_github(gh: &GitHub, candidate: &mut Candidate) -> bool {
+    let needs_metadata = candidate.stars == 0 && candidate.description.is_none();
+    match gh.get_repo(&candidate.full_name).await {
+        Ok(repo) => {
+            if needs_metadata {
+                candidate.html_url = repo.html_url;
+                candidate.description = repo.description;
+            }
+            candidate.stars = candidate.stars.max(repo.stargazers_count);
+            candidate.forks = repo.forks_count;
+            candidate.open_issues = repo.open_issues_count;
+        }
+        Err(e) => {
+            if needs_metadata {
+                warn!(repo = %candidate.full_name, error = %e, "skipping: repo lookup failed");
+                return false;
+            }
+            warn!(repo = %candidate.full_name, error = %e, "repo detail lookup failed; metrics may be incomplete");
+        }
+    }
+
+    match gh.open_pr_count(&candidate.full_name).await {
+        Ok(prs) => {
+            candidate.open_prs = prs;
+            candidate.open_issues = candidate.open_issues.saturating_sub(prs);
+        }
+        Err(e) => warn!(repo = %candidate.full_name, error = %e, "open PR count lookup failed"),
+    }
+
+    match gh.get_languages(&candidate.full_name).await {
+        Ok(langs) => candidate.languages = langs,
+        Err(e) => warn!(repo = %candidate.full_name, error = %e, "language lookup failed"),
+    }
+    true
+}
+
+async fn resolve_measure_unsafe(requested: bool) -> bool {
+    if !requested {
+        return false;
+    }
+    if geiger::is_available().await {
+        info!("cargo-geiger detected; will measure unsafe usage for primarily-Rust repos");
+        true
+    } else {
+        warn!("--measure-unsafe set but `cargo geiger` is unavailable; run `cargo install cargo-geiger`. Skipping unsafe measurement");
+        false
+    }
 }
 
 /// Re-run classification + scoring over the rows already in the database,
@@ -341,9 +350,6 @@ fn reclassify(db_path: &str) -> Result<()> {
                 replacements += 1;
                 store.upsert(&rescored)?;
             }
-            // Neither: no genuine cross-language provenance. Drop it from the
-            // store so the site stays free of native-Rust noise and Rust-crate
-            // compatibility shims.
             _ => {
                 dropped += 1;
                 store.delete(&project.repo_url)?;
@@ -368,6 +374,7 @@ fn reclassify(db_path: &str) -> Result<()> {
 fn candidate_from_project(p: &Project) -> Candidate {
     let full_name = p
         .repo_url
+        .trim()
         .trim_start_matches("https://github.com/")
         .trim_start_matches("http://github.com/")
         .trim_end_matches('/')
@@ -381,11 +388,7 @@ fn candidate_from_project(p: &Project) -> Candidate {
         open_issues: p.open_issues,
         open_prs: p.open_prs,
         languages: Vec::new(),
-        created_at: None,
-        pushed_at: None,
         signals: p.signals.clone(),
-        unsafe_percentage: p.unsafe_percentage,
-        named_origin: p.named_origin.clone(),
     }
 }
 
@@ -418,27 +421,34 @@ fn history_from_project(p: &Project) -> HistoryAnalysis {
         rust_pct_after: p.history_rust_after,
         transition_magnitude: p.transition_magnitude,
         total_commits: p.total_commits_analyzed.unwrap_or(0),
-        strong_transition: p.transition_magnitude.unwrap_or(0.0) >= 25.0
-            && p.history_rust_after.unwrap_or(0.0) >= 40.0
-            && p.history_from_language.is_some()
-            && p.history_rust_before.unwrap_or(100.0) <= 35.0,
+        strong_transition: transitions::strong_transition_from_stored(
+            p.transition_magnitude,
+            p.history_rust_before,
+            p.history_rust_after,
+            p.history_from_language.as_deref(),
+        ),
     }
 }
 
 async fn backfill_history(db_path: &str, args: BackfillArgs) -> Result<()> {
-    let _lock = acquire_backfill_lock(db_path)?;
-    let store = Store::open(db_path)?;
-    let exemplar_set = load_exemplar_set(&args.exemplars_file)?;
-    let measure_unsafe = args.measure_unsafe && {
-        if geiger::is_available().await {
-            info!("cargo-geiger detected; will measure unsafe usage for primarily-Rust repos");
-            true
-        } else {
-            warn!("--measure-unsafe set but `cargo geiger` is unavailable; run `cargo install cargo-geiger`. Skipping unsafe measurement");
-            false
-        }
+    let shard = parse_shard(args.shard.as_deref())?;
+    // Shard workers each own a private DB copy — skip the exclusive lock.
+    let _lock = if shard.is_some() {
+        None
+    } else {
+        Some(acquire_backfill_lock(db_path)?)
     };
+    let store = Store::open(db_path)?;
+    let exemplar_set: std::collections::HashSet<_> =
+        exemplars::load(std::path::Path::new(&args.exemplars_file))?
+            .into_iter()
+            .collect();
+    let measure_unsafe = resolve_measure_unsafe(args.measure_unsafe).await;
     let mut projects = store.all()?;
+    if let Some((index, total)) = shard {
+        projects.retain(|p| shard_owns(&p.repo_url, index, total));
+        info!(shard = index, shards = total, repos = projects.len(), "backfill shard filter applied");
+    }
     projects.sort_by(|a, b| {
         exemplars::backfill_priority(&a.repo_url, a.stars, a.confidence, &exemplar_set).cmp(
             &exemplars::backfill_priority(&b.repo_url, b.stars, b.confidence, &exemplar_set),
@@ -449,7 +459,7 @@ async fn backfill_history(db_path: &str, args: BackfillArgs) -> Result<()> {
     let total = projects.len();
     let mut updated = 0usize;
     let mut skipped = 0usize;
-    let mut skipped_huge = 0usize;
+    let mut skipped_star_cap = 0usize;
     let mut failed = 0usize;
     let mut dead_lettered = 0usize;
     let mut processed = 0usize;
@@ -462,7 +472,7 @@ async fn backfill_history(db_path: &str, args: BackfillArgs) -> Result<()> {
 
     for project in projects {
         if args.max_stars > 0 && project.stars >= args.max_stars {
-            skipped_huge += 1;
+            skipped_star_cap += 1;
             continue;
         }
 
@@ -486,8 +496,7 @@ async fn backfill_history(db_path: &str, args: BackfillArgs) -> Result<()> {
             measure_unsafe && analysis.rust_is_primary && project.unsafe_percentage.is_none();
 
         // Geiger-only pass for repos already enriched but never measured.
-        // Skip exemplar monorepos here — they are usually workspace roots where
-        // `cargo geiger` cannot run, and they would otherwise starve the queue.
+        // Skip exemplar monorepos — usually workspace roots where geiger fails.
         if history_ok {
             if needs_geiger && !exemplars::is_exemplar(&project.repo_url, &exemplar_set) {
                 info!(
@@ -599,18 +608,13 @@ async fn backfill_history(db_path: &str, args: BackfillArgs) -> Result<()> {
         batch = processed,
         updated,
         skipped,
-        skipped_huge,
+        skipped_star_cap,
         failed,
         dead_lettered,
         max_stars = args.max_stars,
         "backfill-history batch complete"
     );
     Ok(())
-}
-
-fn load_exemplar_set(path: &str) -> Result<std::collections::HashSet<String>> {
-    let slugs = exemplars::load(std::path::Path::new(path))?;
-    Ok(slugs.into_iter().collect())
 }
 
 fn backfill_pending(
@@ -634,10 +638,6 @@ fn backfill_pending(
         && p.history_attempts.unwrap_or(0) >= args.max_attempts
     {
         return false;
-    }
-    if p.history_status.as_deref() == Some("skipped_huge") && args.max_stars == 0 {
-        // Re-queue repos previously star-skipped when running without a cap.
-        return true;
     }
     true
 }
@@ -680,30 +680,8 @@ async fn scan_exemplars(db_path: &str, args: ScanExemplarsArgs) -> Result<()> {
             ..Default::default()
         };
 
-        match gh.get_repo(&full_name).await {
-            Ok(repo) => {
-                candidate.description = repo.description;
-                candidate.stars = repo.stargazers_count;
-                candidate.forks = repo.forks_count;
-                candidate.open_issues = repo.open_issues_count;
-                candidate.created_at = repo.created_at;
-                candidate.pushed_at = repo.pushed_at;
-            }
-            Err(e) => {
-                warn!(repo = %full_name, error = %e, "exemplar repo lookup failed; skipping");
-                continue;
-            }
-        }
-
-        if let Ok(prs) = gh.open_pr_count(&full_name).await {
-            candidate.open_prs = prs;
-            if candidate.open_issues > prs {
-                candidate.open_issues -= prs;
-            }
-        }
-
-        if let Ok(langs) = gh.get_languages(&full_name).await {
-            candidate.languages = langs;
+        if !enrich_candidate_from_github(&gh, &mut candidate).await {
+            continue;
         }
 
         let analysis = commits::analyze(&candidate);
@@ -719,11 +697,12 @@ async fn scan_exemplars(db_path: &str, args: ScanExemplarsArgs) -> Result<()> {
             HistoryAnalysis::default()
         };
 
-        let enrichment = if history.enrichment.lines_added.is_some() {
-            history.enrichment.clone()
-        } else {
-            CommitEnrichment::default()
-        };
+        let enrichment = history
+            .enrichment
+            .lines_added
+            .is_some()
+            .then(|| history.enrichment.clone())
+            .unwrap_or_default();
 
         let mut project = score::score(&candidate, &analysis, &enrichment, &history, &now);
         if let Some(first) = store.first_detected(&project.repo_url)? {
@@ -762,6 +741,84 @@ async fn scan_exemplars(db_path: &str, args: ScanExemplarsArgs) -> Result<()> {
 /// True when transition analysis already completed successfully for this row.
 fn history_already_ok(p: &Project) -> bool {
     p.history_status.as_deref() == Some("ok")
+}
+
+/// Parse `INDEX/TOTAL` (0-based index).
+fn parse_shard(raw: Option<&str>) -> Result<Option<(u32, u32)>> {
+    let Some(raw) = raw else {
+        return Ok(None);
+    };
+    let (index, total) = raw
+        .split_once('/')
+        .with_context(|| format!("invalid --shard {raw:?}, expected INDEX/TOTAL"))?;
+    let index: u32 = index.parse().context("shard index")?;
+    let total: u32 = total.parse().context("shard total")?;
+    anyhow::ensure!(total > 0, "shard total must be > 0");
+    anyhow::ensure!(index < total, "shard index must be < total");
+    Ok(Some((index, total)))
+}
+
+/// Stable FNV-1a shard assignment so parallel runners partition without overlap.
+fn shard_owns(repo_url: &str, index: u32, total: u32) -> bool {
+    let mut hash: u64 = 0xcbf29ce484222325;
+    for byte in repo_url.as_bytes() {
+        hash ^= u64::from(*byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    (hash % u64::from(total)) as u32 == index
+}
+
+/// Prefer the row with successful history, else the newest attempt.
+fn prefer_enriched(a: &Project, b: &Project) -> Project {
+    let rank = |p: &Project| -> (u8, String) {
+        let status = match p.history_status.as_deref() {
+            Some("ok") => 2,
+            Some("failed") => 1,
+            _ => 0,
+        };
+        (status, p.history_attempted_at.clone().unwrap_or_default())
+    };
+    if rank(b) > rank(a) {
+        b.clone()
+    } else {
+        a.clone()
+    }
+}
+
+fn merge_db(args: MergeDbArgs) -> Result<()> {
+    let base = Store::open(&args.into)?;
+    let mut by_url: std::collections::HashMap<String, Project> = base
+        .all()?
+        .into_iter()
+        .map(|p| (p.repo_url.clone(), p))
+        .collect();
+
+    for path in &args.shards {
+        let shard = Store::open(path)?;
+        let mut merged = 0usize;
+        for project in shard.all()? {
+            let entry = by_url
+                .entry(project.repo_url.clone())
+                .or_insert_with(|| project.clone());
+            let preferred = prefer_enriched(entry, &project);
+            if preferred.history_status != entry.history_status
+                || preferred.history_attempted_at != entry.history_attempted_at
+                || preferred.transition_magnitude != entry.transition_magnitude
+            {
+                merged += 1;
+            }
+            *entry = preferred;
+        }
+        info!(shard = %path, merged, "merged shard into base map");
+    }
+
+    let mut written = 0usize;
+    for project in by_url.values() {
+        base.upsert(project)?;
+        written += 1;
+    }
+    info!(into = %args.into, written, shards = args.shards.len(), "merge-db complete");
+    Ok(())
 }
 
 /// Exclusive lock so two backfills cannot corrupt the same SQLite file.
@@ -844,7 +901,11 @@ fn normalize_repo_url(repo: &str) -> String {
 
 fn build_site(db_path: &str, args: BuildSiteArgs) -> Result<()> {
     let store = Store::open(db_path)?;
-    let exemplar_set = load_exemplar_set("data/exemplars.txt").unwrap_or_default();
+    let exemplar_set: std::collections::HashSet<_> =
+        exemplars::load(std::path::Path::new("data/exemplars.txt"))
+            .unwrap_or_default()
+            .into_iter()
+            .collect();
     let mut projects: Vec<Project> = store
         .all()?
         .into_iter()

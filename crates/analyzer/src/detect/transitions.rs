@@ -9,7 +9,7 @@ use std::time::Duration;
 
 use tracing::warn;
 
-use super::enrich::{compute_ai_assist_score_legacy, CommitEnrichment};
+use super::enrich::{enrichment_from_totals, legacy_stat_from_record, CommitEnrichment};
 use super::git_history::{
     fetch_log, language_from_path, parse_numstat_log, CommitRecord, FileChange,
 };
@@ -34,7 +34,9 @@ pub struct HistoryAnalysis {
 }
 
 /// Minimum Rust-share swing to call a transition "strong".
-const MIN_TRANSITION_MAGNITUDE: f64 = 25.0;
+pub const MIN_TRANSITION_MAGNITUDE: f64 = 25.0;
+/// Minimum late-history Rust share for a strong transition (rehydrate from store).
+pub const MIN_RUST_AFTER_FOR_STRONG: f64 = 40.0;
 /// Early/late segments each cover this fraction of commit history.
 const SEGMENT_FRACTION: f64 = 0.20;
 /// Minimum net code lines before composition ratios are meaningful.
@@ -43,9 +45,22 @@ const MIN_NET_LINES: u64 = 500;
 const MIN_DOMINANT_SHARE: f64 = 15.0;
 /// Early-history Rust share must be below this to count as a migration (not
 /// born-in-Rust ports like RuAnnoy/pounce).
-const MAX_RUST_BEFORE_FOR_MIGRATION: f64 = 35.0;
+pub const MAX_RUST_BEFORE_FOR_MIGRATION: f64 = 35.0;
 /// Minimum rise in Rust share between early and late segments.
 const MIN_RUST_RISE: f64 = 5.0;
+
+/// Reconstruct `strong_transition` from persisted history fields.
+pub fn strong_transition_from_stored(
+    magnitude: Option<f64>,
+    rust_before: Option<f64>,
+    rust_after: Option<f64>,
+    from_language: Option<&str>,
+) -> bool {
+    magnitude.unwrap_or(0.0) >= MIN_TRANSITION_MAGNITUDE
+        && rust_after.unwrap_or(0.0) >= MIN_RUST_AFTER_FOR_STRONG
+        && from_language.is_some()
+        && rust_before.unwrap_or(100.0) <= MAX_RUST_BEFORE_FOR_MIGRATION
+}
 
 /// Options for commit-history analysis (timeouts, macro sampling).
 #[derive(Debug, Clone, Copy)]
@@ -114,14 +129,9 @@ pub async fn analyze_history(repo_url: &str, opts: HistoryOptions) -> HistoryAna
     analyze_commits_with_sample_points(&commits, opts.sample_points)
 }
 
-/// Back-compat wrapper used by tests and simple call sites.
-#[allow(dead_code)]
-pub async fn analyze_history_simple(repo_url: &str, per_step_timeout: Duration) -> HistoryAnalysis {
-    analyze_history(repo_url, HistoryOptions::standard(per_step_timeout)).await
-}
-
 /// Core analysis over already-parsed commits (unit-testable without git).
-pub fn analyze_commits(commits: &[CommitRecord]) -> HistoryAnalysis {
+#[cfg(test)]
+fn analyze_commits(commits: &[CommitRecord]) -> HistoryAnalysis {
     analyze_commits_with_sample_points(commits, 400)
 }
 
@@ -199,8 +209,6 @@ pub fn analyze_commits_with_sample_points(
 #[derive(Debug, Clone, Default)]
 struct CompositionSample {
     idx: usize,
-    #[allow(dead_code)]
-    timestamp: i64,
     net: HashMap<String, i64>,
 }
 
@@ -217,7 +225,6 @@ fn sample_composition(commits: &[CommitRecord], max_points: usize) -> Vec<Compos
         if idx + 1 == commits.len() || idx % step == 0 {
             samples.push(CompositionSample {
                 idx,
-                timestamp: commit.timestamp,
                 net: net.clone(),
             });
         }
@@ -373,65 +380,23 @@ fn enrichment_from_window(window: &[&CommitRecord]) -> CommitEnrichment {
         .flat_map(|c| c.files.iter())
         .map(|f| f.removed)
         .sum();
-    let commit_count = window.len() as u32;
+    let min_ts = window.iter().map(|c| c.timestamp).min().unwrap_or(0);
+    let max_ts = window.iter().map(|c| c.timestamp).max().unwrap_or(0);
+    let legacy_stats: Vec<_> = window.iter().map(|c| legacy_stat_from_record(c)).collect();
+    let refs: Vec<_> = legacy_stats.iter().collect();
 
-    let timestamps: Vec<i64> = window.iter().map(|c| c.timestamp).collect();
-    let min_ts = *timestamps.iter().min().unwrap_or(&0);
-    let max_ts = *timestamps.iter().max().unwrap_or(&0);
-    let duration_days = duration_days(min_ts, max_ts);
-
-    let velocity = if duration_days > 0 {
-        Some(round2(
-            (lines_added + lines_removed) as f64 / duration_days as f64,
-        ))
-    } else if lines_added + lines_removed > 0 {
-        Some((lines_added + lines_removed) as f64)
-    } else {
-        None
-    };
-
-    let legacy_stats: Vec<super::enrich::LegacyCommitStat> = window
-        .iter()
-        .map(|c| super::enrich::legacy_stat_from_record(c))
-        .collect();
-    let refs: Vec<&super::enrich::LegacyCommitStat> = legacy_stats.iter().collect();
-    let ai_score = Some(compute_ai_assist_score_legacy(
-        &refs,
+    enrichment_from_totals(
         lines_added,
         lines_removed,
-    ));
-
-    CommitEnrichment {
-        lines_added: Some(lines_added),
-        lines_removed: Some(lines_removed),
-        rewrite_velocity: velocity,
-        ai_assist_score: ai_score,
-        rewrite_duration_days: Some(duration_days.max(1)),
-        commit_count: Some(commit_count),
-    }
-}
-
-fn duration_days(min_ts: i64, max_ts: i64) -> u32 {
-    use chrono::{TimeZone, Utc};
-    if min_ts == 0 || max_ts == 0 {
-        return 1;
-    }
-    match (
-        Utc.timestamp_opt(min_ts, 0).single(),
-        Utc.timestamp_opt(max_ts, 0).single(),
-    ) {
-        (Some(s), Some(e)) => (e - s).num_days().max(0) as u32,
-        _ => 1,
-    }
-    .max(1)
+        window.len() as u32,
+        min_ts,
+        max_ts,
+        &refs,
+    )
 }
 
 fn round1(x: f64) -> f64 {
     (x * 10.0).round() / 10.0
-}
-
-fn round2(x: f64) -> f64 {
-    (x * 100.0).round() / 100.0
 }
 
 #[cfg(test)]

@@ -9,9 +9,11 @@
 //! produces a far more trustworthy score. Weights are intentionally simple and
 //! easy to tune; a learned classifier is a planned future addition.
 
-use crate::detect::classify::{classify, has_strong_rewrite_signal, named_origin, ProjectKind};
+use crate::detect::classify::{
+    classify, has_strong_rewrite_signal, named_origin, signal_title_body, ProjectKind,
+};
 use crate::detect::commits::LanguageAnalysis;
-use crate::detect::enrich::CommitEnrichment;
+use crate::detect::enrich::{round2, CommitEnrichment};
 use crate::detect::transitions::HistoryAnalysis;
 use crate::types::{Candidate, Project, RewritePr};
 
@@ -170,9 +172,7 @@ pub fn score(
         rust_percentage: round2(analysis.rust_percentage),
         confidence: round2(confidence),
         rewrite_pr: select_rewrite_pr(candidate),
-        // Unsafe measurement is an opt-in, post-scoring step (main.rs); carry
-        // through whatever the candidate already holds (usually `None` here).
-        unsafe_percentage: candidate.unsafe_percentage,
+        unsafe_percentage: None,
         project_kind: kind.as_str().to_string(),
         named_origin: named_origin(candidate),
         lines_added: enrichment.lines_added,
@@ -253,12 +253,7 @@ fn pr_relevance(title: &str) -> i32 {
 /// Recover the raw issue/PR title from a signal `detail` of the form
 /// `"<label>: <title>"`, falling back to the whole detail if unsplittable.
 fn signal_title(detail: &str) -> String {
-    detail
-        .split_once(": ")
-        .map(|x| x.1)
-        .filter(|t| !t.is_empty())
-        .unwrap_or(detail)
-        .to_string()
+    signal_title_body(detail).to_string()
 }
 
 /// Choose the most explanatory source link for the detection.
@@ -269,10 +264,6 @@ fn primary_source(candidate: &Candidate) -> Option<String> {
         }
     }
     candidate.signals.first().map(|s| s.url.clone())
-}
-
-fn round2(x: f64) -> f64 {
-    (x * 100.0).round() / 100.0
 }
 
 /// Never emit Rust or noise languages as the displaced original.

@@ -2,22 +2,23 @@ name: enrich-and-deploy
 
 on:
   schedule:
-    # Weekly deep enrichment (macro-commit analysis is slow).
+    # Weekly deep enrichment (history analysis is slow; shards run in parallel).
     - cron: "0 8 * * 0"
   workflow_dispatch:
     inputs:
-      batch_size:
-        description: "Repos per backfill batch"
+      timeout_secs:
+        description: "Per-step timeout for normal repos"
         required: false
-        default: "15"
+        default: "180"
       macro_timeout_secs:
-        description: "Per-step timeout for exemplar macro analysis"
+        description: "Per-step timeout for exemplar / macro repos"
         required: false
-        default: "900"
-      max_rounds:
-        description: "Max backfill watchdog rounds (~200 pending repos needs hundreds)"
+        default: "600"
+      run_scan:
+        description: "Also run a light discovery scan before enriching"
+        type: boolean
         required: false
-        default: "500"
+        default: false
 
 permissions:
   contents: read
@@ -28,10 +29,13 @@ concurrency:
   group: rerust-enrich
   cancel-in-progress: false
 
+env:
+  SHARD_COUNT: "8"
+
 jobs:
-  enrich:
+  prepare:
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -52,11 +56,8 @@ jobs:
       - name: Build
         run: cargo build --release
 
-      # backfill-history measures unsafe usage by default; install geiger up front.
-      - name: Install cargo-geiger
-        run: cargo install cargo-geiger --locked
-
-      - name: Light discovery scan (no per-repo history)
+      - name: Optional light discovery scan
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_scan }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -67,22 +68,97 @@ jobs:
             --max-candidates 500 \
             --no-analyze-history
 
-      # Parallel scan-exemplars (skips history_status=ok) + batched backfill loop.
-      - name: Enrichment watchdog (exemplars + backfill)
+      - name: Stage binary for artifact
+        run: cp target/release/rerust rerust-bin
+
+      - name: Upload base DB + binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: enrich-base
+          path: |
+            rerust.db
+            rerust-bin
+            data/exemplars.txt
+          if-no-files-found: error
+
+  enrich-shard:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - name: Download base
+        uses: actions/download-artifact@v4
+        with:
+          name: enrich-base
+
+      - name: Prepare binary
+        run: |
+          chmod +x ./rerust-bin
+          mkdir -p data
+          if [[ -f exemplars.txt && ! -f data/exemplars.txt ]]; then
+            mv exemplars.txt data/exemplars.txt
+          fi
+          test -f data/exemplars.txt
+          cp rerust.db "shard-${{ matrix.shard }}.db"
+
+      - name: Backfill shard
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RERUST_BATCH_SIZE: ${{ github.event.inputs.batch_size || '15' }}
-          RERUST_MACRO_TIMEOUT: ${{ github.event.inputs.macro_timeout_secs || '900' }}
-          RERUST_MAX_ROUNDS: ${{ github.event.inputs.max_rounds || '500' }}
-          RERUST_WATCHDOG_FOREGROUND: "1"
         run: |
-          chmod +x scripts/backfill-watch.sh
-          ./scripts/backfill-watch.sh --foreground || true
+          ./rerust-bin backfill-history \
+            --db "shard-${{ matrix.shard }}.db" \
+            --shard "${{ matrix.shard }}/${{ env.SHARD_COUNT }}" \
+            --batch-size 1000 \
+            --timeout-secs "${{ github.event.inputs.timeout_secs || '180' }}" \
+            --macro-timeout-secs "${{ github.event.inputs.macro_timeout_secs || '600' }}" \
+            --exemplars-file data/exemplars.txt \
+            --retry-failed \
+            --no-measure-unsafe
 
-      - name: Reclassify and build site
+      - name: Upload shard DB
+        uses: actions/upload-artifact@v4
+        with:
+          name: enrich-shard-${{ matrix.shard }}
+          path: shard-${{ matrix.shard }}.db
+          if-no-files-found: error
+
+  merge-and-deploy:
+    needs: [prepare, enrich-shard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download base + shards
+        uses: actions/download-artifact@v4
+        with:
+          pattern: enrich-*
+          merge-multiple: true
+
+      - name: Prepare tools
         run: |
-          ./target/release/rerust reclassify --db rerust.db
-          ./target/release/rerust build-site --db rerust.db --out docs
+          chmod +x ./rerust-bin
+          mkdir -p data
+          if [[ -f exemplars.txt && ! -f data/exemplars.txt ]]; then
+            mv exemplars.txt data/exemplars.txt
+          fi
+          ls -la shard-*.db rerust.db ./rerust-bin
+
+      - name: Merge shards, reclassify, build site
+        run: |
+          ./rerust-bin merge-db --into rerust.db shard-*.db
+          ./rerust-bin reclassify --db rerust.db
+          ./rerust-bin build-site --db rerust.db --out docs
+
+      - name: Persist merged DB for next runs
+        uses: actions/cache/save@v4
+        with:
+          path: rerust.db
+          key: rerust-db-${{ github.run_id }}-enriched
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -90,7 +166,7 @@ jobs:
           path: docs
 
   deploy:
-    needs: enrich
+    needs: merge-and-deploy
     runs-on: ubuntu-latest
     environment:
       name: github-pages

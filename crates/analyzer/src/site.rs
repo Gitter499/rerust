@@ -20,14 +20,10 @@ pub fn build(out_dir: &str, projects: &[Project]) -> Result<()> {
     fs::create_dir_all(out_dir).with_context(|| format!("create {out_dir}"))?;
 
     let generated_at = chrono::Utc::now().format("%Y-%m-%d %H:%M UTC").to_string();
-
-    // Emit data.json for anyone who wants the raw feed.
     let data_json = serde_json::to_string_pretty(projects)?;
     fs::write(Path::new(out_dir).join("data.json"), &data_json).context("write data.json")?;
 
-    // Embed a compact, script-safe copy of the data into the HTML.
     let embedded = serde_json::to_string(projects)?.replace('<', "\\u003c");
-
     let mut env = Environment::new();
     env.add_template("index", TEMPLATE)
         .context("load index template")?;
@@ -41,6 +37,5 @@ pub fn build(out_dir: &str, projects: &[Project]) -> Result<()> {
         .context("render index template")?;
 
     fs::write(Path::new(out_dir).join("index.html"), html).context("write index.html")?;
-
     Ok(())
 }

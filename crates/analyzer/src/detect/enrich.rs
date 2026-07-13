@@ -1,14 +1,9 @@
-//! Commit-history enrichment for rewrite metrics.
+//! Rewrite-window metrics and the experimental AI-assist heuristic.
 //!
-//! Prefer [`super::transitions::analyze_history`] for concrete language-shift
-//! detection. This module remains for backwards compatibility with
-//! `--enrich-commits` and exposes shared AI-assist heuristics.
+//! Prefer [`super::transitions::analyze_history`] for language-shift detection;
+//! this module holds the shared enrichment shape and AI scoring used by that path.
 
-use std::time::Duration;
-
-use tracing::warn;
-
-use super::git_history::{fetch_log, parse_numstat_log, CommitRecord};
+use super::git_history::CommitRecord;
 
 /// Metrics derived from commit history during a rewrite window.
 #[derive(Debug, Clone, Default)]
@@ -22,53 +17,21 @@ pub struct CommitEnrichment {
     pub commit_count: Option<u32>,
 }
 
-/// Legacy per-commit shape used by the AI-assist heuristic.
+/// Per-commit shape used by the AI-assist heuristic.
 #[derive(Debug, Clone)]
 pub(crate) struct LegacyCommitStat {
     pub timestamp: i64,
     pub subject: String,
     pub added: u64,
-    pub removed: u64,
-    pub rust_added: u64,
-    pub non_rust_removed: u64,
 }
 
 pub(crate) fn legacy_stat_from_record(c: &CommitRecord) -> LegacyCommitStat {
-    let mut added = 0u64;
-    let mut removed = 0u64;
-    let mut rust_added = 0u64;
-    let mut non_rust_removed = 0u64;
-    for f in &c.files {
-        added += f.added;
-        removed += f.removed;
-        if f.path.ends_with(".rs") {
-            rust_added += f.added;
-        } else if f.removed > 0 {
-            non_rust_removed += f.removed;
-        }
-    }
     LegacyCommitStat {
         timestamp: c.timestamp,
         subject: c.subject.clone(),
-        added,
-        removed,
-        rust_added,
-        non_rust_removed,
+        added: c.files.iter().map(|f| f.added).sum(),
     }
 }
-
-const REWRITE_MSG_TERMS: &[&str] = &[
-    "rewrite",
-    "rewritten",
-    "port",
-    "ported",
-    "translate",
-    "translated",
-    "reimplement",
-    "migration",
-    "rust",
-    "convert",
-];
 
 const AI_MSG_PATTERNS: &[&str] = &[
     "refactor",
@@ -80,75 +43,35 @@ const AI_MSG_PATTERNS: &[&str] = &[
     "translation",
 ];
 
-/// Shallow-clone `repo_url` and analyze recent commits (legacy path).
-pub async fn enrich_commits(repo_url: &str, per_step_timeout: Duration) -> CommitEnrichment {
-    let tmp = match tempfile::Builder::new()
-        .prefix("rerust-enrich-")
-        .tempdir()
-    {
-        Ok(t) => t,
-        Err(e) => {
-            warn!(repo = repo_url, error = %e, "enrich: could not create temp dir");
-            return CommitEnrichment::default();
-        }
-    };
-
-    let repo_budget = per_step_timeout.saturating_mul(3);
-    let log = match fetch_log(repo_url, tmp.path(), per_step_timeout, repo_budget, false).await {
-        Some(s) => s,
-        None => return CommitEnrichment::default(),
-    };
-
-    let commits = parse_numstat_log(&log);
-    let window: Vec<LegacyCommitStat> = commits
-        .iter()
-        .map(legacy_stat_from_record)
-        .filter(|c| is_rewrite_commit(c))
-        .collect();
-
-    enrichment_from_legacy_window(&window)
-}
-
-fn is_rewrite_commit(c: &LegacyCommitStat) -> bool {
-    let subj = c.subject.to_lowercase();
-    let msg_match = REWRITE_MSG_TERMS.iter().any(|t| subj.contains(t));
-    let file_match = c.rust_added > 0 && c.non_rust_removed > 0;
-    msg_match || file_match || (c.rust_added > 50 && c.removed > 50)
-}
-
-fn enrichment_from_legacy_window(window: &[LegacyCommitStat]) -> CommitEnrichment {
-    if window.is_empty() {
-        return CommitEnrichment::default();
-    }
-
-    let lines_added: u64 = window.iter().map(|c| c.added).sum();
-    let lines_removed: u64 = window.iter().map(|c| c.removed).sum();
-    let commit_count = window.len() as u32;
-
-    let timestamps: Vec<i64> = window.iter().map(|c| c.timestamp).collect();
-    let min_ts = *timestamps.iter().min().unwrap_or(&0);
-    let max_ts = *timestamps.iter().max().unwrap_or(&0);
-    let duration_days = duration_days(min_ts, max_ts);
-
-    let velocity = if duration_days > 0 {
-        Some(round2(
-            (lines_added + lines_removed) as f64 / duration_days as f64,
-        ))
-    } else if lines_added + lines_removed > 0 {
-        Some((lines_added + lines_removed) as f64)
+/// Build enrichment from window totals + optional AI score input.
+pub(crate) fn enrichment_from_totals(
+    lines_added: u64,
+    lines_removed: u64,
+    commit_count: u32,
+    min_ts: i64,
+    max_ts: i64,
+    ai_window: &[&LegacyCommitStat],
+) -> CommitEnrichment {
+    let days = duration_days(min_ts, max_ts);
+    let churn = lines_added + lines_removed;
+    let velocity = if days > 0 {
+        Some(round2(churn as f64 / days as f64))
+    } else if churn > 0 {
+        Some(churn as f64)
     } else {
         None
     };
-
-    let refs: Vec<&LegacyCommitStat> = window.iter().collect();
-    let ai_score = Some(compute_ai_assist_score_legacy(&refs, lines_added, lines_removed));
 
     CommitEnrichment {
         lines_added: Some(lines_added),
         lines_removed: Some(lines_removed),
         rewrite_velocity: velocity,
-        ai_assist_score: ai_score,
-        rewrite_duration_days: Some(duration_days.max(1)),
+        ai_assist_score: Some(compute_ai_assist_score_legacy(
+            ai_window,
+            lines_added,
+            lines_removed,
+        )),
+        rewrite_duration_days: Some(days.max(1)),
         commit_count: Some(commit_count),
     }
 }
@@ -180,8 +103,7 @@ pub(crate) fn compute_ai_assist_score_legacy(
             AI_MSG_PATTERNS.iter().any(|p| s.contains(p))
         })
         .count() as f64;
-    let templated_ratio = templated / n;
-    score += (templated_ratio * 0.25).min(0.25);
+    score += ((templated / n) * 0.25).min(0.25);
 
     let big_commits = window.iter().filter(|c| c.added > 2000).count() as f64;
     if big_commits > 0.0 {
@@ -189,7 +111,6 @@ pub(crate) fn compute_ai_assist_score_legacy(
     }
 
     score += burst_score(window).min(0.25);
-
     round2(score.clamp(0.0, 1.0))
 }
 
@@ -222,7 +143,7 @@ fn burst_score(window: &[&LegacyCommitStat]) -> f64 {
     }
 }
 
-fn duration_days(min_ts: i64, max_ts: i64) -> u32 {
+pub(crate) fn duration_days(min_ts: i64, max_ts: i64) -> u32 {
     use chrono::{TimeZone, Utc};
     if min_ts == 0 || max_ts == 0 {
         return 1;
@@ -237,7 +158,7 @@ fn duration_days(min_ts: i64, max_ts: i64) -> u32 {
     .max(1)
 }
 
-fn round2(x: f64) -> f64 {
+pub(crate) fn round2(x: f64) -> f64 {
     (x * 100.0).round() / 100.0
 }
 
@@ -245,14 +166,11 @@ fn round2(x: f64) -> f64 {
 mod tests {
     use super::*;
 
-    fn commit(subject: &str, added: u64, removed: u64, ts: i64) -> LegacyCommitStat {
+    fn commit(subject: &str, added: u64, _removed: u64, ts: i64) -> LegacyCommitStat {
         LegacyCommitStat {
             timestamp: ts,
             subject: subject.into(),
             added,
-            removed,
-            rust_added: if added > 0 { added } else { 0 },
-            non_rust_removed: removed,
         }
     }
 
