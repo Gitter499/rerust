@@ -602,6 +602,15 @@
     .detail-section-churn { grid-area: churn; }
     .detail-section-activity { grid-area: activity; }
     .detail-section-ai { grid-area: ai; }
+    .detail-layout > .rewrite-pr,
+    .detail-layout > .rewrite-prs {
+      grid-area: pr;
+      width: 100%;
+      min-width: 0;
+    }
+    .detail-layout > .rewrite-prs .rewrite-pr {
+      width: 100%;
+    }
     .detail-section-title {
       font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
       text-transform: uppercase; color: #e0cbd0; margin-bottom: 10px;
