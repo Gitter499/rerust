@@ -99,7 +99,7 @@
     .ferris.f5 { top: 45%;    left: -30px;  width: 92px;  transform: rotate(8deg);   opacity: 0.22; }
     .ferris.f6 { top: 60%;    right: -26px; width: 108px; transform: rotate(-22deg); opacity: 0.23; }
 
-    .wrap { position: relative; z-index: 1; max-width: 2100px; margin: 0 auto; padding: 48px 24px 80px; }
+    .wrap { position: relative; z-index: 1; max-width: 2100px; margin: 0 auto; padding: 48px 24px 32px; }
     /* Header: logo (left) · filters (center) · stats chip (right). */
     .topbar {
       display: grid;
@@ -471,6 +471,8 @@
       text-transform: uppercase; letter-spacing: 0.03em; font-size: 13px;
     }
     .rewrite-pr .rp-title { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rewrite-prs { display: flex; flex-direction: column; gap: 6px; }
+    .rewrite-prs .rewrite-pr .rp-label { font-size: 11px; }
 
     .gh-icon {
       display: inline-flex; align-items: center; color: var(--muted);
@@ -606,7 +608,7 @@
     .pg-btn:disabled { opacity: 0.4; cursor: not-allowed; }
     .pg-ellipsis { color: var(--muted); padding: 0 4px; font-size: 12px; user-select: none; }
 
-    footer { margin-top: 48px; color: var(--muted); font-size: 12.5px; text-align: center; }
+    footer { margin-top: 20px; color: var(--muted); font-size: 12.5px; text-align: center; }
     footer a { color: var(--accent); text-decoration: none; }
   </style>
 </head>
@@ -765,7 +767,18 @@
 
     // Pagination: filter -> sort -> paginate. `page` is 1-indexed and reset to 1
     // whenever the search query or sort order changes.
-    const PAGE_SIZE = 12;
+    const PAGE_SIZE_BASE = 12;
+
+    /** More columns on large screens need a larger page so the grid stays >2 rows deep. */
+    function pageSize() {
+      const w = window.innerWidth;
+      if (w >= 2100) return 36; // 6 cols × 6 rows
+      if (w >= 1750) return 30; // 5 × 6
+      if (w >= 1400) return 24; // 4 × 6
+      if (w >= 1050) return 18; // 3 × 6
+      if (w >= 700) return PAGE_SIZE_BASE; // 2 × 6
+      return 8;
+    }
     let page = 1;
 
     function escapeHtml(s) {
@@ -952,14 +965,33 @@
       </div>`;
     }
 
+    function rewritePrList(p) {
+      const prs = Array.isArray(p.rewrite_prs) && p.rewrite_prs.length
+        ? p.rewrite_prs
+        : (p.rewrite_pr && p.rewrite_pr.url ? [p.rewrite_pr] : []);
+      return prs.filter((pr) => pr && pr.url);
+    }
+
     function rewritePrLink(p, extraClass) {
-      if (!p.rewrite_pr || !p.rewrite_pr.url) return "";
+      const prs = rewritePrList(p);
+      if (!prs.length) return "";
       const cls = extraClass ? `rewrite-pr ${extraClass}` : "rewrite-pr";
-      return `<a class="${cls}" href="${escapeHtml(p.rewrite_pr.url)}" target="_blank" rel="noopener" title="${escapeHtml(p.rewrite_pr.title)}" onclick="event.stopPropagation()">
+      if (prs.length === 1) {
+        const pr = prs[0];
+        return `<a class="${cls}" href="${escapeHtml(pr.url)}" target="_blank" rel="noopener" title="${escapeHtml(pr.title)}" onclick="event.stopPropagation()">
              ${ICON.pr}
              <span class="rp-label">Rewrite PR</span>
-             <span class="rp-title">${escapeHtml(truncate(p.rewrite_pr.title, 80))}</span>
+             <span class="rp-title">${escapeHtml(truncate(pr.title, 80))}</span>
            </a>`;
+      }
+      const items = prs.map((pr, i) =>
+        `<a class="${cls}" href="${escapeHtml(pr.url)}" target="_blank" rel="noopener" title="${escapeHtml(pr.title)}" onclick="event.stopPropagation()">
+             ${ICON.pr}
+             <span class="rp-label">${i === 0 ? "Rewrite PRs" : "PR"}</span>
+             <span class="rp-title">${escapeHtml(truncate(pr.title, 80))}</span>
+           </a>`
+      ).join("");
+      return `<div class="rewrite-prs">${items}</div>`;
     }
 
     function card(p) {
@@ -1359,7 +1391,8 @@
       resetExpansion();
       const rows = currentView();
       const total = rows.length;
-      const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+      const size = pageSize();
+      const totalPages = Math.max(1, Math.ceil(total / size));
       page = Math.min(Math.max(1, page), totalPages);
 
       if (total === 0) {
@@ -1371,8 +1404,8 @@
       }
 
       empty.style.display = "none";
-      const start = (page - 1) * PAGE_SIZE;
-      const end = Math.min(start + PAGE_SIZE, total);
+      const start = (page - 1) * size;
+      const end = Math.min(start + size, total);
       grid.innerHTML = rows.slice(start, end).map((p) => card(p)).join("");
       bindCards();
       countEl.textContent = `Showing ${start + 1}\u2013${end} of ${total}`;
@@ -1380,7 +1413,7 @@
     }
 
     function goToPage(p) {
-      const totalPages = Math.max(1, Math.ceil(currentView().length / PAGE_SIZE));
+      const totalPages = Math.max(1, Math.ceil(currentView().length / pageSize()));
       const clamped = Math.min(Math.max(1, p), totalPages);
       if (clamped === page) return;
       page = clamped;
@@ -1423,10 +1456,18 @@
     render();
 
     renderDiffBg();
-    let diffResizeTimer;
+    let resizeTimer;
+    let lastPageSize = pageSize();
     window.addEventListener("resize", () => {
-      clearTimeout(diffResizeTimer);
-      diffResizeTimer = setTimeout(renderDiffBg, 250);
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        renderDiffBg();
+        const next = pageSize();
+        if (next !== lastPageSize) {
+          lastPageSize = next;
+          render();
+        }
+      }, 250);
     });
   </script>
 </body>

@@ -172,6 +172,7 @@ pub fn score(
         rust_percentage: round2(analysis.rust_percentage),
         confidence: round2(confidence),
         rewrite_pr: select_rewrite_pr(candidate),
+        rewrite_prs: select_rewrite_prs(candidate),
         unsafe_percentage: None,
         project_kind: kind.as_str().to_string(),
         named_origin: named_origin(candidate),
@@ -214,38 +215,79 @@ pub fn score(
     }
 }
 
-/// Pick the pull-request signal that best represents the rewrite.
-///
-/// PR signals are ranked by how strongly their title implies a rewrite
-/// ("rewrite" > "port" > "rust"); the highest-scoring one wins, falling back to
-/// the first PR signal when none of the keywords match. Uses only signal data
-/// already collected during discovery — no extra API calls.
-fn select_rewrite_pr(candidate: &Candidate) -> Option<RewritePr> {
-    candidate
+/// Collect rewrite/migration PRs. Earliest PR number is treated as primary
+/// (epic rewrite landings usually precede follow-up migrations).
+fn select_rewrite_prs(candidate: &Candidate) -> Vec<RewritePr> {
+    let mut scored: Vec<(u64, RewritePr)> = candidate
         .signals
         .iter()
         .filter(|s| s.kind == "pull-request")
-        // Reverse so that, on equal relevance, `max_by_key` yields the first PR.
-        .rev()
-        .max_by_key(|s| pr_relevance(&signal_title(&s.detail)))
-        .map(|s| RewritePr {
-            title: signal_title(&s.detail),
-            url: s.url.clone(),
+        .filter_map(|s| {
+            let title = signal_title(&s.detail);
+            if pr_relevance(&title) <= 0 {
+                return None;
+            }
+            Some((
+                pr_number(&s.url).unwrap_or(u64::MAX),
+                RewritePr {
+                    title,
+                    url: s.url.clone(),
+                },
+            ))
         })
+        .collect();
+
+    scored.sort_by_key(|(num, _)| *num);
+
+    let mut out = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for (_, pr) in scored {
+        if seen.insert(pr.url.clone()) {
+            out.push(pr);
+        }
+        if out.len() >= 5 {
+            break;
+        }
+    }
+    out
 }
 
-/// Keyword-based relevance for a PR title indicating it performed the rewrite.
+fn select_rewrite_pr(candidate: &Candidate) -> Option<RewritePr> {
+    select_rewrite_prs(candidate).into_iter().next()
+}
+
+fn pr_number(url: &str) -> Option<u64> {
+    url.rsplit('/').next()?.parse().ok()
+}
+
+/// Keyword-based relevance for a PR title indicating rewrite / migration work.
 fn pr_relevance(title: &str) -> i32 {
     let t = title.to_lowercase();
     let mut score = 0;
-    if t.contains("rewrite") {
+    if t.contains("migrate from") || t.contains("migration from") || t.contains("port from") {
+        score += 4;
+    }
+    if t.contains(" to rust") || t.contains(" into rust") || t.contains(" in rust") {
         score += 3;
     }
-    if t.contains("port") {
+    if t.contains("rewrite") || t.contains("rewriting") || t.contains("rewritten") {
+        score += 3;
+    }
+    if t.contains("port") || t.contains("ported") || t.contains("migrate") || t.contains("migrat")
+    {
         score += 2;
     }
     if t.contains("rust") {
         score += 1;
+    }
+    for lang in [
+        "zig", "c++", "python", "typescript", "javascript", "golang", "java", "ruby", "php",
+        "swift", "kotlin", "haskell", "ocaml", "c#",
+    ] {
+        if t.contains(lang) {
+            score += 2;
+            break;
+        }
     }
     score
 }
@@ -386,5 +428,33 @@ mod tests {
         assert_eq!(sanitize_original_language(Some("Rust".into())), None);
         assert_eq!(sanitize_original_language(Some("rust".into())), None);
         assert_eq!(sanitize_original_language(Some("C".into())).as_deref(), Some("C"));
+    }
+
+    #[test]
+    fn selects_multiple_rewrite_prs_earliest_first() {
+        let c = Candidate {
+            signals: vec![
+                Signal {
+                    kind: "pull-request".into(),
+                    detail: "PR titled about migrating to Rust: refactor: migrate from zig to rust"
+                        .into(),
+                    url: "https://github.com/oven-sh/bun/pull/30698".into(),
+                },
+                Signal {
+                    kind: "pull-request".into(),
+                    detail: "PR titled about rewriting in Rust: Rewrite Bun in Rust".into(),
+                    url: "https://github.com/oven-sh/bun/pull/30412".into(),
+                },
+            ],
+            ..Default::default()
+        };
+        let prs = select_rewrite_prs(&c);
+        assert_eq!(prs.len(), 2);
+        assert_eq!(prs[0].url, "https://github.com/oven-sh/bun/pull/30412");
+        assert_eq!(prs[1].url, "https://github.com/oven-sh/bun/pull/30698");
+        assert_eq!(
+            select_rewrite_pr(&c).unwrap().url,
+            "https://github.com/oven-sh/bun/pull/30412"
+        );
     }
 }

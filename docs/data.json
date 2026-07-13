@@ -39,6 +39,102 @@
     "exemplar": true
   },
   {
+    "name": "bun",
+    "repo_url": "https://github.com/oven-sh/bun",
+    "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
+    "stars": 93653,
+    "forks": 4762,
+    "open_issues": 5119,
+    "open_prs": 2079,
+    "original_language": "C++",
+    "rust_percentage": 66.95,
+    "confidence": 0.87,
+    "signals": [
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about rewriting in Rust: Rewrite Bun in Rust",
+        "url": "https://github.com/oven-sh/bun/pull/30412"
+      },
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about migrating to Rust: refactor: migrate from zig to rust",
+        "url": "https://github.com/oven-sh/bun/pull/30698"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "Rewrite Bun in Rust",
+        "url": "https://github.com/oven-sh/bun/pull/30412"
+      },
+      {
+        "title": "refactor: migrate from zig to rust",
+        "url": "https://github.com/oven-sh/bun/pull/30698"
+      }
+    ],
+    "rewrite_pr": {
+      "title": "Rewrite Bun in Rust",
+      "url": "https://github.com/oven-sh/bun/pull/30412"
+    },
+    "unsafe_percentage": null,
+    "project_kind": "rewrite",
+    "lines_added": 6932830,
+    "lines_removed": 2889868,
+    "rewrite_velocity": 5303.83,
+    "ai_assist_score": 0.56,
+    "rewrite_duration_days": 1852,
+    "commit_count": 15354,
+    "transition_magnitude": 7.5,
+    "total_commits_analyzed": 16115,
+    "history_status": "ok",
+    "history_attempted_at": "2026-07-10T20:35:37.620874+00:00",
+    "history_attempts": 0,
+    "source_url": "https://github.com/oven-sh/bun/pull/30412",
+    "first_detected": "2026-07-08T18:55:37.813981+00:00",
+    "last_seen": "2026-07-08T19:08:00.720624+00:00",
+    "exemplar": true
+  },
+  {
+    "name": "kata-containers",
+    "repo_url": "https://github.com/kata-containers/kata-containers",
+    "description": "Kata Containers is an open source project and community working to build a standard implementation of lightweight Virtual Machines (VMs) that feel and perform like containers, but provide the workload isolation and security advantages of VMs. https://katacontainers.io/",
+    "stars": 8272,
+    "forks": 1387,
+    "open_issues": 1466,
+    "open_prs": 127,
+    "original_language": "Go",
+    "rust_percentage": 60.29,
+    "confidence": 0.64,
+    "signals": [
+      {
+        "kind": "issue",
+        "detail": "issue titled about rewriting in Rust: kata-ctl: Consider rewriting log-parser in rust and adding to the tool",
+        "url": "https://github.com/kata-containers/kata-containers/issues/5350"
+      },
+      {
+        "kind": "issue",
+        "detail": "issue titled about migrating to Rust: Add runtime-rs Support to kata-monitor and migrate to rust",
+        "url": "https://github.com/kata-containers/kata-containers/issues/12666"
+      }
+    ],
+    "unsafe_percentage": null,
+    "project_kind": "rewrite",
+    "lines_added": 1174000,
+    "lines_removed": 150839,
+    "rewrite_velocity": 1141.12,
+    "ai_assist_score": 0.4,
+    "rewrite_duration_days": 1161,
+    "commit_count": 4001,
+    "transition_magnitude": 31.9,
+    "total_commits_analyzed": 19624,
+    "history_status": "ok",
+    "history_attempted_at": "2026-07-10T20:35:37.620874+00:00",
+    "history_attempts": 0,
+    "source_url": "https://github.com/kata-containers/kata-containers/issues/5350",
+    "first_detected": "2026-07-08T18:57:48.676789+00:00",
+    "last_seen": "2026-07-08T19:06:00.607916+00:00",
+    "exemplar": true
+  },
+  {
     "name": "deno",
     "repo_url": "https://github.com/denoland/deno",
     "description": "A modern runtime for JavaScript and TypeScript.",
@@ -71,9 +167,27 @@
         "url": "https://github.com/denoland/deno/pull/35033"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "refactor(ext/crypto): port WebCrypto to Rust (cppgc + WebIDL)",
+        "url": "https://github.com/denoland/deno/pull/35033"
+      },
+      {
+        "title": "perf(node): port internal bindings to Rust",
+        "url": "https://github.com/denoland/deno/pull/35182"
+      },
+      {
+        "title": "refactor(ext/node): port the node:fs impl to Rust ops",
+        "url": "https://github.com/denoland/deno/pull/35254"
+      },
+      {
+        "title": "refactor(ext/telemetry): port W3C propagation logic to Rust",
+        "url": "https://github.com/denoland/deno/pull/35275"
+      }
+    ],
     "rewrite_pr": {
-      "title": "perf(node): port internal bindings to Rust",
-      "url": "https://github.com/denoland/deno/pull/35182"
+      "title": "refactor(ext/crypto): port WebCrypto to Rust (cppgc + WebIDL)",
+      "url": "https://github.com/denoland/deno/pull/35033"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -91,92 +205,6 @@
     "source_url": "https://github.com/denoland/deno/pull/35182",
     "first_detected": "2026-07-08T18:48:43.075328+00:00",
     "last_seen": "2026-07-08T18:59:50.666672+00:00",
-    "exemplar": true
-  },
-  {
-    "name": "bun",
-    "repo_url": "https://github.com/oven-sh/bun",
-    "description": "Incredibly fast JavaScript runtime, bundler, test runner, and package manager – all in one",
-    "stars": 93653,
-    "forks": 4762,
-    "open_issues": 5119,
-    "open_prs": 2079,
-    "original_language": "C++",
-    "rust_percentage": 66.95,
-    "confidence": 0.82,
-    "signals": [
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about rewriting in Rust: Rewrite Bun in Rust",
-        "url": "https://github.com/oven-sh/bun/pull/30412"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about migrating to Rust: refactor: migrate from zig to rust",
-        "url": "https://github.com/oven-sh/bun/pull/30698"
-      }
-    ],
-    "rewrite_pr": {
-      "title": "Rewrite Bun in Rust",
-      "url": "https://github.com/oven-sh/bun/pull/30412"
-    },
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "lines_added": 6932830,
-    "lines_removed": 2889868,
-    "rewrite_velocity": 5303.83,
-    "ai_assist_score": 0.56,
-    "rewrite_duration_days": 1852,
-    "commit_count": 15354,
-    "transition_magnitude": 7.5,
-    "total_commits_analyzed": 16115,
-    "history_status": "ok",
-    "history_attempted_at": "2026-07-10T20:35:37.620874+00:00",
-    "history_attempts": 0,
-    "source_url": "https://github.com/oven-sh/bun/pull/30412",
-    "first_detected": "2026-07-08T18:55:37.813981+00:00",
-    "last_seen": "2026-07-08T19:08:00.720624+00:00",
-    "exemplar": true
-  },
-  {
-    "name": "kata-containers",
-    "repo_url": "https://github.com/kata-containers/kata-containers",
-    "description": "Kata Containers is an open source project and community working to build a standard implementation of lightweight Virtual Machines (VMs) that feel and perform like containers, but provide the workload isolation and security advantages of VMs. https://katacontainers.io/",
-    "stars": 8272,
-    "forks": 1387,
-    "open_issues": 1466,
-    "open_prs": 127,
-    "original_language": "Go",
-    "rust_percentage": 60.29,
-    "confidence": 0.59,
-    "signals": [
-      {
-        "kind": "issue",
-        "detail": "issue titled about rewriting in Rust: kata-ctl: Consider rewriting log-parser in rust and adding to the tool",
-        "url": "https://github.com/kata-containers/kata-containers/issues/5350"
-      },
-      {
-        "kind": "issue",
-        "detail": "issue titled about migrating to Rust: Add runtime-rs Support to kata-monitor and migrate to rust",
-        "url": "https://github.com/kata-containers/kata-containers/issues/12666"
-      }
-    ],
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "lines_added": 1174000,
-    "lines_removed": 150839,
-    "rewrite_velocity": 1141.12,
-    "ai_assist_score": 0.4,
-    "rewrite_duration_days": 1161,
-    "commit_count": 4001,
-    "transition_magnitude": 31.9,
-    "total_commits_analyzed": 19624,
-    "history_status": "ok",
-    "history_attempted_at": "2026-07-10T20:35:37.620874+00:00",
-    "history_attempts": 0,
-    "source_url": "https://github.com/kata-containers/kata-containers/issues/5350",
-    "first_detected": "2026-07-08T18:57:48.676789+00:00",
-    "last_seen": "2026-07-08T19:06:00.607916+00:00",
     "exemplar": true
   },
   {
@@ -331,6 +359,289 @@
     "exemplar": true
   },
   {
+    "name": "rust",
+    "repo_url": "https://github.com/exercism/rust",
+    "description": "Exercism exercises in Rust.",
+    "stars": 1750,
+    "forks": 542,
+    "open_issues": 10,
+    "open_prs": 1,
+    "original_language": null,
+    "rust_percentage": 98.59,
+    "confidence": 0.55,
+    "signals": [
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about a migration to Rust: exercise crate: Migrated the crate to the Rust 2018 edition",
+        "url": "https://github.com/exercism/rust/pull/793"
+      },
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about a migration to Rust: track: Migrated the existing exercises to the Rust 2018 edition",
+        "url": "https://github.com/exercism/rust/pull/769"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "track: Migrated the existing exercises to the Rust 2018 edition",
+        "url": "https://github.com/exercism/rust/pull/769"
+      },
+      {
+        "title": "exercise crate: Migrated the crate to the Rust 2018 edition",
+        "url": "https://github.com/exercism/rust/pull/793"
+      }
+    ],
+    "rewrite_pr": {
+      "title": "track: Migrated the existing exercises to the Rust 2018 edition",
+      "url": "https://github.com/exercism/rust/pull/769"
+    },
+    "unsafe_percentage": null,
+    "project_kind": "rewrite",
+    "source_url": "https://github.com/exercism/rust/pull/793",
+    "first_detected": "2026-07-08T18:54:43.509995+00:00",
+    "last_seen": "2026-07-08T19:03:02.615087+00:00",
+    "exemplar": false
+  },
+  {
+    "name": "maifetch",
+    "repo_url": "https://github.com/HutchyBen/maifetch",
+    "description": "Command line tool to show your MaiTea profile",
+    "stars": 1,
+    "forks": 10,
+    "open_issues": 1,
+    "open_prs": 11,
+    "original_language": null,
+    "rust_percentage": 99.37,
+    "confidence": 0.55,
+    "signals": [
+      {
+        "kind": "issue",
+        "detail": "issue titled about rewriting in Rust: [BOUNTY] Rewrite in Rust",
+        "url": "https://github.com/HutchyBen/maifetch/issues/1"
+      },
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about rewriting in Rust: Rewrite maifetch in Rust",
+        "url": "https://github.com/HutchyBen/maifetch/pull/18"
+      },
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about rewriting in Rust: Rewrite maifetch in Rust",
+        "url": "https://github.com/HutchyBen/maifetch/pull/5"
+      },
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about rewriting in Rust: Rewrite maifetch in Rust",
+        "url": "https://github.com/HutchyBen/maifetch/pull/2"
+      },
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about rewriting in Rust: Rewrite maifetch in Rust",
+        "url": "https://github.com/HutchyBen/maifetch/pull/10"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "Rewrite maifetch in Rust",
+        "url": "https://github.com/HutchyBen/maifetch/pull/2"
+      },
+      {
+        "title": "Rewrite maifetch in Rust",
+        "url": "https://github.com/HutchyBen/maifetch/pull/5"
+      },
+      {
+        "title": "Rewrite maifetch in Rust",
+        "url": "https://github.com/HutchyBen/maifetch/pull/10"
+      },
+      {
+        "title": "Rewrite maifetch in Rust",
+        "url": "https://github.com/HutchyBen/maifetch/pull/18"
+      }
+    ],
+    "rewrite_pr": {
+      "title": "Rewrite maifetch in Rust",
+      "url": "https://github.com/HutchyBen/maifetch/pull/2"
+    },
+    "unsafe_percentage": null,
+    "project_kind": "rewrite",
+    "source_url": "https://github.com/HutchyBen/maifetch/pull/18",
+    "first_detected": "2026-07-08T18:48:40.752956+00:00",
+    "last_seen": "2026-07-08T18:59:43.886547+00:00",
+    "exemplar": false
+  },
+  {
+    "name": "frida-rust",
+    "repo_url": "https://github.com/frida/frida-rust",
+    "description": "Frida Rust bindings",
+    "stars": 278,
+    "forks": 77,
+    "open_issues": 22,
+    "open_prs": 6,
+    "original_language": "C",
+    "rust_percentage": 7.27,
+    "confidence": 0.48,
+    "signals": [
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about migrating to Rust: Upgrade Frida to 17.15.3, migrate to Rust edition 2024, and expand Gum API coverage",
+        "url": "https://github.com/frida/frida-rust/pull/242"
+      },
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about migrating to Rust: Upgrade Frida to 17.13.0, migrate to Rust edition 2024, and fix sound…",
+        "url": "https://github.com/frida/frida-rust/pull/243"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "Upgrade Frida to 17.15.3, migrate to Rust edition 2024, and expand Gum API coverage",
+        "url": "https://github.com/frida/frida-rust/pull/242"
+      },
+      {
+        "title": "Upgrade Frida to 17.13.0, migrate to Rust edition 2024, and fix sound…",
+        "url": "https://github.com/frida/frida-rust/pull/243"
+      }
+    ],
+    "rewrite_pr": {
+      "title": "Upgrade Frida to 17.15.3, migrate to Rust edition 2024, and expand Gum API coverage",
+      "url": "https://github.com/frida/frida-rust/pull/242"
+    },
+    "unsafe_percentage": null,
+    "project_kind": "rewrite",
+    "source_url": "https://github.com/frida/frida-rust/pull/242",
+    "first_detected": "2026-07-08T18:54:48.603362+00:00",
+    "last_seen": "2026-07-08T19:03:47.051605+00:00",
+    "exemplar": false
+  },
+  {
+    "name": "agent-team-composer",
+    "repo_url": "https://github.com/ford-at-home/agent-team-composer",
+    "description": null,
+    "stars": 0,
+    "forks": 0,
+    "open_issues": 41,
+    "open_prs": 0,
+    "original_language": "Python",
+    "rust_percentage": 0.0,
+    "confidence": 0.45,
+    "signals": [
+      {
+        "kind": "issue",
+        "detail": "issue titled about porting to Rust: Phase 5: Test Migration - Port Test Suite to Rust",
+        "url": "https://github.com/ford-at-home/agent-team-composer/issues/21"
+      },
+      {
+        "kind": "issue",
+        "detail": "issue titled about porting to Rust: Phase 3: Core Implementation - Port Business Logic to Rust",
+        "url": "https://github.com/ford-at-home/agent-team-composer/issues/19"
+      },
+      {
+        "kind": "issue",
+        "detail": "issue titled about migrating to Rust: [P1] Migrate State Persistence to Rust Service",
+        "url": "https://github.com/ford-at-home/agent-team-composer/issues/60"
+      },
+      {
+        "kind": "issue",
+        "detail": "issue titled about migrating to Rust: Epic: Migrate agent-team-composer from TypeScript to Rust",
+        "url": "https://github.com/ford-at-home/agent-team-composer/issues/15"
+      }
+    ],
+    "unsafe_percentage": null,
+    "project_kind": "rewrite",
+    "source_url": "https://github.com/ford-at-home/agent-team-composer/issues/21",
+    "first_detected": "2026-07-08T18:49:30.578347+00:00",
+    "last_seen": "2026-07-08T18:59:53.967692+00:00",
+    "exemplar": false
+  },
+  {
+    "name": "zmx",
+    "repo_url": "https://github.com/amarbel-llc/zmx",
+    "description": "Session persistence for terminal processes",
+    "stars": 0,
+    "forks": 0,
+    "open_issues": 8,
+    "open_prs": 2,
+    "original_language": "Zig",
+    "rust_percentage": 0.0,
+    "confidence": 0.45,
+    "signals": [
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about rewriting in Rust: rewrite zmx in Rust, replacing ghostty-vt with a built-in VT engine",
+        "url": "https://github.com/amarbel-llc/zmx/pull/12"
+      },
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about rewriting in Rust: Point to the posh Rust rewrite in the mosh fork",
+        "url": "https://github.com/amarbel-llc/zmx/pull/13"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "rewrite zmx in Rust, replacing ghostty-vt with a built-in VT engine",
+        "url": "https://github.com/amarbel-llc/zmx/pull/12"
+      },
+      {
+        "title": "Point to the posh Rust rewrite in the mosh fork",
+        "url": "https://github.com/amarbel-llc/zmx/pull/13"
+      }
+    ],
+    "rewrite_pr": {
+      "title": "rewrite zmx in Rust, replacing ghostty-vt with a built-in VT engine",
+      "url": "https://github.com/amarbel-llc/zmx/pull/12"
+    },
+    "unsafe_percentage": null,
+    "project_kind": "rewrite",
+    "source_url": "https://github.com/amarbel-llc/zmx/pull/12",
+    "first_detected": "2026-07-08T18:54:36.552887+00:00",
+    "last_seen": "2026-07-08T19:04:59.473091+00:00",
+    "exemplar": false
+  },
+  {
+    "name": "claude-code-wechat-channel",
+    "repo_url": "https://github.com/sxhxliang/claude-code-wechat-channel",
+    "description": "Claude Code Channel plugin for WeChat — bridge WeChat messages into Claude Code sessions via the official ClawBot ilink API",
+    "stars": 0,
+    "forks": 0,
+    "open_issues": 0,
+    "open_prs": 2,
+    "original_language": "TypeScript",
+    "rust_percentage": 0.0,
+    "confidence": 0.45,
+    "signals": [
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about migrating to Rust: Migrate WeChat channel implementation to Rust",
+        "url": "https://github.com/sxhxliang/claude-code-wechat-channel/pull/1"
+      },
+      {
+        "kind": "pull-request",
+        "detail": "PR titled about migrating to Rust: Migrate WeChat channel implementation to Rust",
+        "url": "https://github.com/sxhxliang/claude-code-wechat-channel/pull/2"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "Migrate WeChat channel implementation to Rust",
+        "url": "https://github.com/sxhxliang/claude-code-wechat-channel/pull/1"
+      },
+      {
+        "title": "Migrate WeChat channel implementation to Rust",
+        "url": "https://github.com/sxhxliang/claude-code-wechat-channel/pull/2"
+      }
+    ],
+    "rewrite_pr": {
+      "title": "Migrate WeChat channel implementation to Rust",
+      "url": "https://github.com/sxhxliang/claude-code-wechat-channel/pull/1"
+    },
+    "unsafe_percentage": null,
+    "project_kind": "rewrite",
+    "source_url": "https://github.com/sxhxliang/claude-code-wechat-channel/pull/1",
+    "first_detected": "2026-07-08T18:56:41.113352+00:00",
+    "last_seen": "2026-07-08T19:04:50.611800+00:00",
+    "exemplar": false
+  },
+  {
     "name": "WPlusPlus",
     "repo_url": "https://github.com/sinisterMage/WPlusPlus",
     "description": "A Python-style scripting language rewritten in Rust & LLVM. Faster, dumber, and more chaotic than ever.",
@@ -431,9 +742,23 @@
         "url": "https://github.com/yuriilychak/SVGnest/pull/8"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Migrated full pair flow to rust",
+        "url": "https://github.com/yuriilychak/SVGnest/pull/8"
+      },
+      {
+        "title": "Migrated Clipper lib to rust",
+        "url": "https://github.com/yuriilychak/SVGnest/pull/9"
+      },
+      {
+        "title": "Fully migrated clipper to Rust",
+        "url": "https://github.com/yuriilychak/SVGnest/pull/13"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Fully migrated clipper to Rust",
-      "url": "https://github.com/yuriilychak/SVGnest/pull/13"
+      "title": "Migrated full pair flow to rust",
+      "url": "https://github.com/yuriilychak/SVGnest/pull/8"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -470,9 +795,23 @@
         "url": "https://github.com/kaleab-kali/vogon-runtime/pull/259"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Migrate changelog check to Rust",
+        "url": "https://github.com/kaleab-kali/vogon-runtime/pull/259"
+      },
+      {
+        "title": "Migrate contributing check to Rust",
+        "url": "https://github.com/kaleab-kali/vogon-runtime/pull/261"
+      },
+      {
+        "title": "Migrate secret check to Rust",
+        "url": "https://github.com/kaleab-kali/vogon-runtime/pull/271"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Migrate secret check to Rust",
-      "url": "https://github.com/kaleab-kali/vogon-runtime/pull/271"
+      "title": "Migrate changelog check to Rust",
+      "url": "https://github.com/kaleab-kali/vogon-runtime/pull/259"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -545,9 +884,27 @@
         "url": "https://github.com/breezy-team/bzrformats/pull/60"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "rio_patch: port to Rust",
+        "url": "https://github.com/breezy-team/bzrformats/pull/56"
+      },
+      {
+        "title": "xml: port serializers to Rust",
+        "url": "https://github.com/breezy-team/bzrformats/pull/60"
+      },
+      {
+        "title": "pack_repo: port to Rust with thin pyo3 bindings",
+        "url": "https://github.com/breezy-team/bzrformats/pull/88"
+      },
+      {
+        "title": "lru_cache: Port LRUSizeCache to Rust",
+        "url": "https://github.com/breezy-team/bzrformats/pull/93"
+      }
+    ],
     "rewrite_pr": {
-      "title": "pack_repo: port to Rust with thin pyo3 bindings",
-      "url": "https://github.com/breezy-team/bzrformats/pull/88"
+      "title": "rio_patch: port to Rust",
+      "url": "https://github.com/breezy-team/bzrformats/pull/56"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -1346,6 +1703,12 @@
         "url": "https://github.com/hkbelagali/propaq/pull/8"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "TermSum ported to Rust ",
+        "url": "https://github.com/hkbelagali/propaq/pull/8"
+      }
+    ],
     "rewrite_pr": {
       "title": "TermSum ported to Rust ",
       "url": "https://github.com/hkbelagali/propaq/pull/8"
@@ -1565,9 +1928,31 @@
         "url": "https://github.com/F1R3FLY-io/f1r3node/pull/80"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Ported registry_sig_gen from Scala to Rust",
+        "url": "https://github.com/F1R3FLY-io/f1r3node/pull/80"
+      },
+      {
+        "title": "ported block_api from scala to rust",
+        "url": "https://github.com/F1R3FLY-io/f1r3node/pull/124"
+      },
+      {
+        "title": "feat: Ported the node configuration from Scala to Rust",
+        "url": "https://github.com/F1R3FLY-io/f1r3node/pull/162"
+      },
+      {
+        "title": "Ported the GrpcReplClient to Rust. Updated the version of tonic to 0.14 for the whole repository",
+        "url": "https://github.com/F1R3FLY-io/f1r3node/pull/169"
+      },
+      {
+        "title": "feat: Ported the WebApi from node from scala to rust",
+        "url": "https://github.com/F1R3FLY-io/f1r3node/pull/192"
+      }
+    ],
     "rewrite_pr": {
-      "title": "feat: Ported instances package from Scala to Rust",
-      "url": "https://github.com/F1R3FLY-io/f1r3node/pull/236"
+      "title": "Ported registry_sig_gen from Scala to Rust",
+      "url": "https://github.com/F1R3FLY-io/f1r3node/pull/80"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -1619,9 +2004,31 @@
         "url": "https://github.com/Tobiscuit/wizwalker-rs/pull/1"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Port wizwalker Client and ClientHandler to Rust",
+        "url": "https://github.com/Tobiscuit/wizwalker-rs/pull/1"
+      },
+      {
+        "title": "Port MemoryReader to Rust",
+        "url": "https://github.com/Tobiscuit/wizwalker-rs/pull/2"
+      },
+      {
+        "title": "Port WizWalker memory system to Rust",
+        "url": "https://github.com/Tobiscuit/wizwalker-rs/pull/3"
+      },
+      {
+        "title": "Port wizwalker hooks to Rust",
+        "url": "https://github.com/Tobiscuit/wizwalker-rs/pull/5"
+      },
+      {
+        "title": "Port Combat Module and Utils to Rust",
+        "url": "https://github.com/Tobiscuit/wizwalker-rs/pull/7"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Port MemoryReader to Rust",
-      "url": "https://github.com/Tobiscuit/wizwalker-rs/pull/2"
+      "title": "Port wizwalker Client and ClientHandler to Rust",
+      "url": "https://github.com/Tobiscuit/wizwalker-rs/pull/1"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -1667,6 +2074,12 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about porting to Rust: feat(bedgraph): port bismark2bedGraph to Rust (epic #797)",
+        "url": "https://github.com/FelixKrueger/Bismark/pull/893"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "feat(bedgraph): port bismark2bedGraph to Rust (epic #797)",
         "url": "https://github.com/FelixKrueger/Bismark/pull/893"
       }
     ],
@@ -1979,6 +2392,12 @@
         "url": "https://github.com/ihh/selectssm/pull/1"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Added RoPE-trick to JAX Mamba; ported to Rust/burn",
+        "url": "https://github.com/ihh/selectssm/pull/1"
+      }
+    ],
     "rewrite_pr": {
       "title": "Added RoPE-trick to JAX Mamba; ported to Rust/burn",
       "url": "https://github.com/ihh/selectssm/pull/1"
@@ -2046,6 +2465,12 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about migrating to Rust: Migrate to Rust 2024 Edition",
+        "url": "https://github.com/neon-bindings/neon/pull/1101"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "Migrate to Rust 2024 Edition",
         "url": "https://github.com/neon-bindings/neon/pull/1101"
       }
     ],
@@ -2159,9 +2584,31 @@
         "url": "https://github.com/SanderVocke/shoopdaloop/pull/622"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Port MidiSortingBuffer to Rust",
+        "url": "https://github.com/SanderVocke/shoopdaloop/pull/596"
+      },
+      {
+        "title": "Port AudioBufferQueue to Rust",
+        "url": "https://github.com/SanderVocke/shoopdaloop/pull/608"
+      },
+      {
+        "title": "Port dummy ports to Rust",
+        "url": "https://github.com/SanderVocke/shoopdaloop/pull/611"
+      },
+      {
+        "title": "Port InternalAudioPort to Rust",
+        "url": "https://github.com/SanderVocke/shoopdaloop/pull/617"
+      },
+      {
+        "title": "feat(rust): Port GraphNode subsystem to Rust",
+        "url": "https://github.com/SanderVocke/shoopdaloop/pull/622"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Port dummy ports to Rust",
-      "url": "https://github.com/SanderVocke/shoopdaloop/pull/611"
+      "title": "Port MidiSortingBuffer to Rust",
+      "url": "https://github.com/SanderVocke/shoopdaloop/pull/596"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -2468,9 +2915,31 @@
         "url": "https://github.com/Qiskit/qiskit/pull/16501"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Port synth_cnot_phase_aam to Rust",
+        "url": "https://github.com/Qiskit/qiskit/pull/12937"
+      },
+      {
+        "title": "Port Ordering and CastKind to Rust",
+        "url": "https://github.com/Qiskit/qiskit/pull/14827"
+      },
+      {
+        "title": "Port pad dynamical decoupling to rust",
+        "url": "https://github.com/Qiskit/qiskit/pull/15291"
+      },
+      {
+        "title": "Port ParameterVector to Rust via PyO3",
+        "url": "https://github.com/Qiskit/qiskit/pull/16326"
+      },
+      {
+        "title": "Migrate `idle_wires` to Rust",
+        "url": "https://github.com/Qiskit/qiskit/pull/16501"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Port pad dynamical decoupling to rust",
-      "url": "https://github.com/Qiskit/qiskit/pull/15291"
+      "title": "Port synth_cnot_phase_aam to Rust",
+      "url": "https://github.com/Qiskit/qiskit/pull/12937"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -2523,9 +2992,27 @@
         "url": "https://github.com/CCExtractor/ccextractor/pull/1730"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "[Rust]Ported AVC Module to Rust",
+        "url": "https://github.com/CCExtractor/ccextractor/pull/1730"
+      },
+      {
+        "title": "[Rust]Ported ES Module to Rust",
+        "url": "https://github.com/CCExtractor/ccextractor/pull/1736"
+      },
+      {
+        "title": "[FEAT] Removed C code already ported to Rust",
+        "url": "https://github.com/CCExtractor/ccextractor/pull/1738"
+      },
+      {
+        "title": "[FEAT] Port SRT encoder to Rust",
+        "url": "https://github.com/CCExtractor/ccextractor/pull/2227"
+      }
+    ],
     "rewrite_pr": {
-      "title": "[FEAT] Port SRT encoder to Rust",
-      "url": "https://github.com/CCExtractor/ccextractor/pull/2227"
+      "title": "[Rust]Ported AVC Module to Rust",
+      "url": "https://github.com/CCExtractor/ccextractor/pull/1730"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -2662,6 +3149,12 @@
         "url": "https://github.com/mthom/scryer-prolog/pull/3275"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Issue 3223 migrate to rust edition 2024",
+        "url": "https://github.com/mthom/scryer-prolog/pull/3275"
+      }
+    ],
     "rewrite_pr": {
       "title": "Issue 3223 migrate to rust edition 2024",
       "url": "https://github.com/mthom/scryer-prolog/pull/3275"
@@ -2699,6 +3192,20 @@
         "kind": "pull-request",
         "detail": "PR titled about migrating to Rust: browser-support: migrate to rust",
         "url": "https://github.com/goauthentik/platform/pull/984"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "browser-support: migrate to rust",
+        "url": "https://github.com/goauthentik/platform/pull/984"
+      },
+      {
+        "title": "cli: migrate to rust",
+        "url": "https://github.com/goauthentik/platform/pull/988"
+      },
+      {
+        "title": "e2e: migrate to rust",
+        "url": "https://github.com/goauthentik/platform/pull/1142"
       }
     ],
     "rewrite_pr": {
@@ -2745,9 +3252,23 @@
         "url": "https://github.com/headroomlabs-ai/headroom/pull/1143"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "feat(rust): port CodeCompressor + Kompress live-zone compressors to Rust (parity-gated)",
+        "url": "https://github.com/headroomlabs-ai/headroom/pull/1143"
+      },
+      {
+        "title": "feat(rust): port Kompress ML prose compressor to Rust (parity-only, 1/3)",
+        "url": "https://github.com/headroomlabs-ai/headroom/pull/1153"
+      },
+      {
+        "title": "feat(rust): port CodeCompressor AST compressor to Rust (parity-only, 2/3)",
+        "url": "https://github.com/headroomlabs-ai/headroom/pull/1154"
+      }
+    ],
     "rewrite_pr": {
-      "title": "feat(rust): port CodeCompressor AST compressor to Rust (parity-only, 2/3)",
-      "url": "https://github.com/headroomlabs-ai/headroom/pull/1154"
+      "title": "feat(rust): port CodeCompressor + Kompress live-zone compressors to Rust (parity-gated)",
+      "url": "https://github.com/headroomlabs-ai/headroom/pull/1143"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -2800,9 +3321,27 @@
         "url": "https://github.com/pmaojo/agent-swarm-dev/pull/122"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Generate OpenSpec proposal for migrating Python modules to Rust",
+        "url": "https://github.com/pmaojo/agent-swarm-dev/pull/107"
+      },
+      {
+        "title": "docs: OpenSpec proposal for migrating Python agents to Rust microservices",
+        "url": "https://github.com/pmaojo/agent-swarm-dev/pull/122"
+      },
+      {
+        "title": "Add OpenSpec proposal for migrating Python modules to Rust",
+        "url": "https://github.com/pmaojo/agent-swarm-dev/pull/132"
+      },
+      {
+        "title": "docs: generate OpenSpec proposal for migrating Python modules to Rust",
+        "url": "https://github.com/pmaojo/agent-swarm-dev/pull/145"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Add OpenSpec proposal for migrating Python modules to Rust",
-      "url": "https://github.com/pmaojo/agent-swarm-dev/pull/132"
+      "title": "Generate OpenSpec proposal for migrating Python modules to Rust",
+      "url": "https://github.com/pmaojo/agent-swarm-dev/pull/107"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -2914,9 +3453,27 @@
         "url": "https://github.com/t0k0sh1/ry/pull/2284"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "feat(runtime): port base64 to Rust pilot (#2282)",
+        "url": "https://github.com/t0k0sh1/ry/pull/2284"
+      },
+      {
+        "title": "feat(runtime): port convert to Rust (abi/ffi/core)",
+        "url": "https://github.com/t0k0sh1/ry/pull/2485"
+      },
+      {
+        "title": "feat(runtime): port path to Rust (abi/ffi/core)",
+        "url": "https://github.com/t0k0sh1/ry/pull/2486"
+      },
+      {
+        "title": "feat(runtime): port io to Rust (abi/ffi/core)",
+        "url": "https://github.com/t0k0sh1/ry/pull/2487"
+      }
+    ],
     "rewrite_pr": {
-      "title": "feat(runtime): port io to Rust (abi/ffi/core)",
-      "url": "https://github.com/t0k0sh1/ry/pull/2487"
+      "title": "feat(runtime): port base64 to Rust pilot (#2282)",
+      "url": "https://github.com/t0k0sh1/ry/pull/2284"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -2934,124 +3491,6 @@
     "source_url": "https://github.com/t0k0sh1/ry/pull/2487",
     "first_detected": "2026-07-08T18:48:33.009593+00:00",
     "last_seen": "2026-07-08T18:58:51.029694+00:00",
-    "exemplar": false
-  },
-  {
-    "name": "vim_rust",
-    "repo_url": "https://github.com/mattsu2020/vim_rust",
-    "description": "The official Vim repository",
-    "stars": 0,
-    "forks": 0,
-    "open_issues": 0,
-    "open_prs": 163,
-    "original_language": "Vim Script",
-    "rust_percentage": 4.93,
-    "confidence": 0.62,
-    "signals": [
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about rewriting in Rust: Rewrite help stubs in Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/425"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port vimrun to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/500"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port drawline to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/467"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port showcmd helpers to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/464"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port version generation to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/408"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port hex utilities to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/181"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port blob handling to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/150"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port autocmd checks to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/116"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port diff helpers to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/56"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port sound handling to Rust stubs",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/436"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port channel handling to Rust with tokio",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/59"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port gvimext shell extension to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/548"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port misc helper functions to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/494"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port quickfix list handling to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/90"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about porting to Rust: Port misc1 and misc2 to rust_misc crate",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/471"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about migrating to Rust: Migrate search to Rust crate",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/101"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about migrating to Rust: Start migrating bufwrite logic to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/265"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about migrating to Rust: Add rust_menu crate and migrate menu operations to Rust",
-        "url": "https://github.com/mattsu2020/vim_rust/pull/98"
-      }
-    ],
-    "rewrite_pr": {
-      "title": "Rewrite help stubs in Rust",
-      "url": "https://github.com/mattsu2020/vim_rust/pull/425"
-    },
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "history_status": "failed",
-    "history_error": "hung on clone; dead-lettered",
-    "history_attempted_at": "2026-07-10 17:39:32",
-    "history_attempts": 3,
-    "source_url": "https://github.com/mattsu2020/vim_rust/pull/425",
-    "first_detected": "2026-07-08T18:48:33.880299+00:00",
-    "last_seen": "2026-07-08T18:58:51.720543+00:00",
     "exemplar": false
   },
   {
@@ -3082,9 +3521,19 @@
         "url": "https://github.com/remacs/remacs/pull/1497"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "restore ported C code, wrap in #ifndef PORTED_TO_RUST",
+        "url": "https://github.com/remacs/remacs/pull/1497"
+      },
+      {
+        "title": "Port init-image-library to rust",
+        "url": "https://github.com/remacs/remacs/pull/1536"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Port init-image-library to rust",
-      "url": "https://github.com/remacs/remacs/pull/1536"
+      "title": "restore ported C code, wrap in #ifndef PORTED_TO_RUST",
+      "url": "https://github.com/remacs/remacs/pull/1497"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -3141,9 +3590,27 @@
         "url": "https://github.com/rust-lang/this-week-in-rust/pull/8240"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Add article \"Rewriting my toy blockchain in Rust\"",
+        "url": "https://github.com/rust-lang/this-week-in-rust/pull/2809"
+      },
+      {
+        "title": "Add blog post: Rewriting sysctl(8) in Rust",
+        "url": "https://github.com/rust-lang/this-week-in-rust/pull/3148"
+      },
+      {
+        "title": "Add Rust Walkthrough: porting MediaInfoLib to pure Rust (revelo)",
+        "url": "https://github.com/rust-lang/this-week-in-rust/pull/8240"
+      },
+      {
+        "title": "Add 'Rewriting the world in Rust'",
+        "url": "https://github.com/rust-lang/this-week-in-rust/pull/8260"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Add Rust Walkthrough: porting MediaInfoLib to pure Rust (revelo)",
-      "url": "https://github.com/rust-lang/this-week-in-rust/pull/8240"
+      "title": "Add article \"Rewriting my toy blockchain in Rust\"",
+      "url": "https://github.com/rust-lang/this-week-in-rust/pull/2809"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -3185,9 +3652,27 @@
         "url": "https://github.com/workbenchdev/Workbench/pull/594"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "library: Ported `NavigationView` to rust",
+        "url": "https://github.com/workbenchdev/Workbench/pull/558"
+      },
+      {
+        "title": "library: Ported `Switch` to RUST",
+        "url": "https://github.com/workbenchdev/Workbench/pull/561"
+      },
+      {
+        "title": "library: Ported `ToggleButton` to RUST",
+        "url": "https://github.com/workbenchdev/Workbench/pull/562"
+      },
+      {
+        "title": "library: Ported View switcher to rust",
+        "url": "https://github.com/workbenchdev/Workbench/pull/594"
+      }
+    ],
     "rewrite_pr": {
-      "title": "library: Ported `Switch` to RUST",
-      "url": "https://github.com/workbenchdev/Workbench/pull/561"
+      "title": "library: Ported `NavigationView` to rust",
+      "url": "https://github.com/workbenchdev/Workbench/pull/558"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -3222,6 +3707,20 @@
         "kind": "pull-request",
         "detail": "PR titled about rewriting in Rust: Rewrite it in rust (regex, utils, nfa, dfa)",
         "url": "https://github.com/y-scope/log-surgeon/pull/219"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "Rewrite it in rust",
+        "url": "https://github.com/y-scope/log-surgeon/pull/217"
+      },
+      {
+        "title": "Rewrite it in rust (regex, utils, nfa, dfa)",
+        "url": "https://github.com/y-scope/log-surgeon/pull/219"
+      },
+      {
+        "title": "Rewrite it in rust (regex, utils)",
+        "url": "https://github.com/y-scope/log-surgeon/pull/220"
       }
     ],
     "rewrite_pr": {
@@ -3338,6 +3837,24 @@
         "url": "https://github.com/HeadShotXx/as/pull/159"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Port C# project to Rust",
+        "url": "https://github.com/HeadShotXx/as/pull/52"
+      },
+      {
+        "title": "Port browser extractor from Rust to single-file C++",
+        "url": "https://github.com/HeadShotXx/as/pull/159"
+      },
+      {
+        "title": "Port browser extractor from Rust to C++",
+        "url": "https://github.com/HeadShotXx/as/pull/178"
+      },
+      {
+        "title": "Port Rust extractor to C++ (cpp_version)",
+        "url": "https://github.com/HeadShotXx/as/pull/181"
+      }
+    ],
     "rewrite_pr": {
       "title": "Port C# project to Rust",
       "url": "https://github.com/HeadShotXx/as/pull/52"
@@ -3387,9 +3904,19 @@
         "url": "https://github.com/newsboat/newsboat/pull/2188"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Port TagSoupPullParser and HtmlRenderer to rust",
+        "url": "https://github.com/newsboat/newsboat/pull/2188"
+      },
+      {
+        "title": "Port `ConfigContainer` to Rust",
+        "url": "https://github.com/newsboat/newsboat/pull/3219"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Port `ConfigContainer` to Rust",
-      "url": "https://github.com/newsboat/newsboat/pull/3219"
+      "title": "Port TagSoupPullParser and HtmlRenderer to rust",
+      "url": "https://github.com/newsboat/newsboat/pull/2188"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -3462,9 +3989,19 @@
         "url": "https://github.com/mishan/gtkhx/pull/303"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "htxf: scoping doc for migrating HTXF to Rust",
+        "url": "https://github.com/mishan/gtkhx/pull/303"
+      },
+      {
+        "title": "docs: scope porting preview.c to Rust",
+        "url": "https://github.com/mishan/gtkhx/pull/384"
+      }
+    ],
     "rewrite_pr": {
-      "title": "docs: scope porting preview.c to Rust",
-      "url": "https://github.com/mishan/gtkhx/pull/384"
+      "title": "htxf: scoping doc for migrating HTXF to Rust",
+      "url": "https://github.com/mishan/gtkhx/pull/303"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -3493,6 +4030,12 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about migrating to Rust: feat: migrate to Rust edition 2024",
+        "url": "https://github.com/ferrumc-rs/ferrumc/pull/322"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "feat: migrate to Rust edition 2024",
         "url": "https://github.com/ferrumc-rs/ferrumc/pull/322"
       }
     ],
@@ -3551,40 +4094,6 @@
     "source_url": "https://github.com/hykilpikonna/hyfetch",
     "first_detected": "2026-07-08T18:48:39.309571+00:00",
     "last_seen": "2026-07-08T18:59:43.248647+00:00",
-    "exemplar": false
-  },
-  {
-    "name": "rust",
-    "repo_url": "https://github.com/exercism/rust",
-    "description": "Exercism exercises in Rust.",
-    "stars": 1750,
-    "forks": 542,
-    "open_issues": 10,
-    "open_prs": 1,
-    "original_language": null,
-    "rust_percentage": 98.59,
-    "confidence": 0.55,
-    "signals": [
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about a migration to Rust: exercise crate: Migrated the crate to the Rust 2018 edition",
-        "url": "https://github.com/exercism/rust/pull/793"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about a migration to Rust: track: Migrated the existing exercises to the Rust 2018 edition",
-        "url": "https://github.com/exercism/rust/pull/769"
-      }
-    ],
-    "rewrite_pr": {
-      "title": "exercise crate: Migrated the crate to the Rust 2018 edition",
-      "url": "https://github.com/exercism/rust/pull/793"
-    },
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "source_url": "https://github.com/exercism/rust/pull/793",
-    "first_detected": "2026-07-08T18:54:43.509995+00:00",
-    "last_seen": "2026-07-08T19:03:02.615087+00:00",
     "exemplar": false
   },
   {
@@ -3867,9 +4376,27 @@
         "url": "https://github.com/Mergifyio/mergify-cli/pull/1521"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "feat(rust): port stack squash to native Rust",
+        "url": "https://github.com/Mergifyio/mergify-cli/pull/1521"
+      },
+      {
+        "title": "feat(rust): port stack checkout to native Rust",
+        "url": "https://github.com/Mergifyio/mergify-cli/pull/1522"
+      },
+      {
+        "title": "feat(rust): port stack sync to native Rust",
+        "url": "https://github.com/Mergifyio/mergify-cli/pull/1523"
+      },
+      {
+        "title": "feat(stack): port RevisionHistoryComment to Rust",
+        "url": "https://github.com/Mergifyio/mergify-cli/pull/1535"
+      }
+    ],
     "rewrite_pr": {
-      "title": "feat(stack): port RevisionHistoryComment to Rust",
-      "url": "https://github.com/Mergifyio/mergify-cli/pull/1535"
+      "title": "feat(rust): port stack squash to native Rust",
+      "url": "https://github.com/Mergifyio/mergify-cli/pull/1521"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -3936,44 +4463,6 @@
     "source_url": "https://github.com/eatmynerds/lobster-rs",
     "first_detected": "2026-07-08T18:50:35.056222+00:00",
     "last_seen": "2026-07-08T19:01:45.847208+00:00",
-    "exemplar": false
-  },
-  {
-    "name": "greprip-rs",
-    "repo_url": "https://github.com/kaofelix/greprip-rs",
-    "description": "High-performance drop-in replacements for grep and find using Rust's ripgrep and fd - Complete Rust port of greprip",
-    "stars": 12,
-    "forks": 0,
-    "open_issues": 0,
-    "open_prs": 0,
-    "original_language": null,
-    "rust_percentage": 87.9,
-    "confidence": 0.55,
-    "signals": [
-      {
-        "kind": "repo-search",
-        "detail": "repo mentions a \"Rust port of\" a named project",
-        "url": "https://github.com/kaofelix/greprip-rs"
-      },
-      {
-        "kind": "repo-search",
-        "detail": "repo is a drop-in replacement written in Rust",
-        "url": "https://github.com/kaofelix/greprip-rs"
-      }
-    ],
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "named_origin": "greprip",
-    "lines_added": 2457,
-    "lines_removed": 15,
-    "rewrite_velocity": 164.8,
-    "ai_assist_score": 0.36,
-    "rewrite_duration_days": 15,
-    "commit_count": 4,
-    "total_commits_analyzed": 4,
-    "source_url": "https://github.com/kaofelix/greprip-rs",
-    "first_detected": "2026-07-07T22:18:53.318076+00:00",
-    "last_seen": "2026-07-08T19:01:47.620029+00:00",
     "exemplar": false
   },
   {
@@ -4312,9 +4801,31 @@
         "url": "https://github.com/Blackcat-Informatics/gmeow-ontology/pull/1007"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "fix: port schema emission to Rust",
+        "url": "https://github.com/Blackcat-Informatics/gmeow-ontology/pull/989"
+      },
+      {
+        "title": "Port up-projection to Rust",
+        "url": "https://github.com/Blackcat-Informatics/gmeow-ontology/pull/996"
+      },
+      {
+        "title": "Port transpiler dataflow to Rust",
+        "url": "https://github.com/Blackcat-Informatics/gmeow-ontology/pull/997"
+      },
+      {
+        "title": "feat(946): port evaluation scoreboards to Rust",
+        "url": "https://github.com/Blackcat-Informatics/gmeow-ontology/pull/1002"
+      },
+      {
+        "title": "Port i18n compile family to Rust",
+        "url": "https://github.com/Blackcat-Informatics/gmeow-ontology/pull/1007"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Port transpiler dataflow to Rust",
-      "url": "https://github.com/Blackcat-Informatics/gmeow-ontology/pull/997"
+      "title": "fix: port schema emission to Rust",
+      "url": "https://github.com/Blackcat-Informatics/gmeow-ontology/pull/989"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -4532,55 +5043,6 @@
     "source_url": "https://github.com/Michael-Lfx/glslang-rust",
     "first_detected": "2026-07-08T18:51:38.529226+00:00",
     "last_seen": "2026-07-08T19:02:47.146679+00:00",
-    "exemplar": false
-  },
-  {
-    "name": "maifetch",
-    "repo_url": "https://github.com/HutchyBen/maifetch",
-    "description": "Command line tool to show your MaiTea profile",
-    "stars": 1,
-    "forks": 10,
-    "open_issues": 1,
-    "open_prs": 11,
-    "original_language": null,
-    "rust_percentage": 99.37,
-    "confidence": 0.55,
-    "signals": [
-      {
-        "kind": "issue",
-        "detail": "issue titled about rewriting in Rust: [BOUNTY] Rewrite in Rust",
-        "url": "https://github.com/HutchyBen/maifetch/issues/1"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about rewriting in Rust: Rewrite maifetch in Rust",
-        "url": "https://github.com/HutchyBen/maifetch/pull/18"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about rewriting in Rust: Rewrite maifetch in Rust",
-        "url": "https://github.com/HutchyBen/maifetch/pull/5"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about rewriting in Rust: Rewrite maifetch in Rust",
-        "url": "https://github.com/HutchyBen/maifetch/pull/2"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about rewriting in Rust: Rewrite maifetch in Rust",
-        "url": "https://github.com/HutchyBen/maifetch/pull/10"
-      }
-    ],
-    "rewrite_pr": {
-      "title": "Rewrite maifetch in Rust",
-      "url": "https://github.com/HutchyBen/maifetch/pull/18"
-    },
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "source_url": "https://github.com/HutchyBen/maifetch/pull/18",
-    "first_detected": "2026-07-08T18:48:40.752956+00:00",
-    "last_seen": "2026-07-08T18:59:43.886547+00:00",
     "exemplar": false
   },
   {
@@ -6275,6 +6737,16 @@
         "url": "https://github.com/robot-accomplice/architext/pull/133"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Phase 1B: port routeCandidateBuilders to Rust",
+        "url": "https://github.com/robot-accomplice/architext/pull/126"
+      },
+      {
+        "title": "Phase 1B: port routeDiagnostics to Rust (test-first)",
+        "url": "https://github.com/robot-accomplice/architext/pull/133"
+      }
+    ],
     "rewrite_pr": {
       "title": "Phase 1B: port routeCandidateBuilders to Rust",
       "url": "https://github.com/robot-accomplice/architext/pull/126"
@@ -6306,6 +6778,16 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about migrating to Rust: chore: migrate rust/face-recognition to icp-cli",
+        "url": "https://github.com/dfinity/examples/pull/1421"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "chore: migrate rust/basic_bitcoin to icp-cli",
+        "url": "https://github.com/dfinity/examples/pull/1397"
+      },
+      {
+        "title": "chore: migrate rust/face-recognition to icp-cli",
         "url": "https://github.com/dfinity/examples/pull/1421"
       }
     ],
@@ -6343,9 +6825,19 @@
         "url": "https://github.com/radekmie/rg/pull/11"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Ported HRG parser to Rust.",
+        "url": "https://github.com/radekmie/rg/pull/11"
+      },
+      {
+        "title": "Ported `inlineReachability` to Rust",
+        "url": "https://github.com/radekmie/rg/pull/15"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Ported `inlineReachability` to Rust",
-      "url": "https://github.com/radekmie/rg/pull/15"
+      "title": "Ported HRG parser to Rust.",
+      "url": "https://github.com/radekmie/rg/pull/11"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -7311,9 +7803,19 @@
         "url": "https://github.com/chalharu/nerust/pull/64"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "chore(workspace): migrate to Rust 2024",
+        "url": "https://github.com/chalharu/nerust/pull/64"
+      },
+      {
+        "title": "chore(workspace): migrate to Rust 2024",
+        "url": "https://github.com/chalharu/nerust/pull/65"
+      }
+    ],
     "rewrite_pr": {
       "title": "chore(workspace): migrate to Rust 2024",
-      "url": "https://github.com/chalharu/nerust/pull/65"
+      "url": "https://github.com/chalharu/nerust/pull/64"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -7381,6 +7883,12 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about rewriting in Rust: begin rewrite in Rust",
+        "url": "https://github.com/dwebagents/AgentPipe/pull/82"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "begin rewrite in Rust",
         "url": "https://github.com/dwebagents/AgentPipe/pull/82"
       }
     ],
@@ -7460,6 +7968,12 @@
         "url": "https://github.com/crisislab-platform/crisislab-network-portal/pull/2"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "1 try rewriting webserver in rust rocket so that it conforms with other tools that will be made later",
+        "url": "https://github.com/crisislab-platform/crisislab-network-portal/pull/2"
+      }
+    ],
     "rewrite_pr": {
       "title": "1 try rewriting webserver in rust rocket so that it conforms with other tools that will be made later",
       "url": "https://github.com/crisislab-platform/crisislab-network-portal/pull/2"
@@ -7524,6 +8038,12 @@
         "url": "https://github.com/fedimint/fedimint/pull/8187"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "chore: port test-ci-all to rust",
+        "url": "https://github.com/fedimint/fedimint/pull/8187"
+      }
+    ],
     "rewrite_pr": {
       "title": "chore: port test-ci-all to rust",
       "url": "https://github.com/fedimint/fedimint/pull/8187"
@@ -7558,6 +8078,12 @@
         "url": "https://github.com/torrust/torrust-tracker/pull/1784"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "chore(workspace): migrate to Rust edition 2024",
+        "url": "https://github.com/torrust/torrust-tracker/pull/1784"
+      }
+    ],
     "rewrite_pr": {
       "title": "chore(workspace): migrate to Rust edition 2024",
       "url": "https://github.com/torrust/torrust-tracker/pull/1784"
@@ -7589,6 +8115,12 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about porting to Rust: feat: ponytail L1 integration — port runtime to Rust",
+        "url": "https://github.com/getappz/agentflare/pull/45"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "feat: ponytail L1 integration — port runtime to Rust",
         "url": "https://github.com/getappz/agentflare/pull/45"
       }
     ],
@@ -7683,40 +8215,6 @@
     "exemplar": false
   },
   {
-    "name": "frida-rust",
-    "repo_url": "https://github.com/frida/frida-rust",
-    "description": "Frida Rust bindings",
-    "stars": 278,
-    "forks": 77,
-    "open_issues": 22,
-    "open_prs": 6,
-    "original_language": "C",
-    "rust_percentage": 7.27,
-    "confidence": 0.43,
-    "signals": [
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about migrating to Rust: Upgrade Frida to 17.15.3, migrate to Rust edition 2024, and expand Gum API coverage",
-        "url": "https://github.com/frida/frida-rust/pull/242"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about migrating to Rust: Upgrade Frida to 17.13.0, migrate to Rust edition 2024, and fix sound…",
-        "url": "https://github.com/frida/frida-rust/pull/243"
-      }
-    ],
-    "rewrite_pr": {
-      "title": "Upgrade Frida to 17.15.3, migrate to Rust edition 2024, and expand Gum API coverage",
-      "url": "https://github.com/frida/frida-rust/pull/242"
-    },
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "source_url": "https://github.com/frida/frida-rust/pull/242",
-    "first_detected": "2026-07-08T18:54:48.603362+00:00",
-    "last_seen": "2026-07-08T19:03:47.051605+00:00",
-    "exemplar": false
-  },
-  {
     "name": "continuum",
     "repo_url": "https://github.com/CambrianTech/continuum",
     "description": "AI citizens, not AI assistants. Autonomous personas who choose their work, vote democratically, and can refuse any request. Alignment through natural selection and continuous learning: users pick personas that   fit, successful patterns spread organically. ",
@@ -7774,9 +8272,19 @@
         "url": "https://github.com/stjude/proteinpaint/pull/4656"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "CohortMAF: Ported `gdc.mafBuild` from Rust to Typescript and bounded it with concurrencyLimiter module",
+        "url": "https://github.com/stjude/proteinpaint/pull/4656"
+      },
+      {
+        "title": "CohortMAF: Removed old Rust code and ported the rust watchdog timer to typescript",
+        "url": "https://github.com/stjude/proteinpaint/pull/4663"
+      }
+    ],
     "rewrite_pr": {
-      "title": "CohortMAF: Removed old Rust code and ported the rust watchdog timer to typescript",
-      "url": "https://github.com/stjude/proteinpaint/pull/4663"
+      "title": "CohortMAF: Ported `gdc.mafBuild` from Rust to Typescript and bounded it with concurrencyLimiter module",
+      "url": "https://github.com/stjude/proteinpaint/pull/4656"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -7805,6 +8313,12 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about a migration to Rust: Migrated CLI and settings to Rust",
+        "url": "https://github.com/exo-explore/exo/pull/2163"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "Migrated CLI and settings to Rust",
         "url": "https://github.com/exo-explore/exo/pull/2163"
       }
     ],
@@ -7852,6 +8366,16 @@
         "url": "https://github.com/goauthentik/authentik/pull/23214"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "outpost/proxy: rewrite in rust",
+        "url": "https://github.com/goauthentik/authentik/pull/21856"
+      },
+      {
+        "title": "outpost/proxy: rewrite in rust (the rest)",
+        "url": "https://github.com/goauthentik/authentik/pull/23214"
+      }
+    ],
     "rewrite_pr": {
       "title": "outpost/proxy: rewrite in rust",
       "url": "https://github.com/goauthentik/authentik/pull/21856"
@@ -7893,6 +8417,16 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about porting to Rust: Port `Requester` class to Rust.",
+        "url": "https://github.com/element-hq/synapse/pull/19828"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "feat: Port `SignatureListItem` to Rust",
+        "url": "https://github.com/element-hq/synapse/pull/19754"
+      },
+      {
+        "title": "Port `Requester` class to Rust.",
         "url": "https://github.com/element-hq/synapse/pull/19828"
       }
     ],
@@ -7940,9 +8474,19 @@
         "url": "https://github.com/garden-co/classic-jazz/pull/3308"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Migrated Crypto to a full Rust implementation and removed all usage of stableStringify.",
+        "url": "https://github.com/garden-co/classic-jazz/pull/3308"
+      },
+      {
+        "title": "feat(cojson): migrate cojson core and comap to rust",
+        "url": "https://github.com/garden-co/classic-jazz/pull/3536"
+      }
+    ],
     "rewrite_pr": {
-      "title": "feat(cojson): migrate cojson core and comap to rust",
-      "url": "https://github.com/garden-co/classic-jazz/pull/3536"
+      "title": "Migrated Crypto to a full Rust implementation and removed all usage of stableStringify.",
+      "url": "https://github.com/garden-co/classic-jazz/pull/3308"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -7971,6 +8515,12 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about a migration to Rust: feat: migrated to rust wasm to avoid the c# runtime complications",
+        "url": "https://github.com/ducflair/dwgdxf/pull/11"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "feat: migrated to rust wasm to avoid the c# runtime complications",
         "url": "https://github.com/ducflair/dwgdxf/pull/11"
       }
     ],
@@ -8008,9 +8558,19 @@
         "url": "https://github.com/SenseiIssei/Sensei/pull/16"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Port LogCompressor to Rust (byte-parity)",
+        "url": "https://github.com/SenseiIssei/Sensei/pull/16"
+      },
+      {
+        "title": "Port TextCompressor to Rust (byte-parity)",
+        "url": "https://github.com/SenseiIssei/Sensei/pull/27"
+      }
+    ],
     "rewrite_pr": {
-      "title": "Port TextCompressor to Rust (byte-parity)",
-      "url": "https://github.com/SenseiIssei/Sensei/pull/27"
+      "title": "Port LogCompressor to Rust (byte-parity)",
+      "url": "https://github.com/SenseiIssei/Sensei/pull/16"
     },
     "unsafe_percentage": null,
     "project_kind": "replacement",
@@ -8044,6 +8604,12 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about rewriting in Rust: ci rewrite in rust",
+        "url": "https://github.com/twitter/the-algorithm/pull/1385"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "ci rewrite in rust",
         "url": "https://github.com/twitter/the-algorithm/pull/1385"
       }
     ],
@@ -8131,6 +8697,12 @@
         "url": "https://github.com/sefn/terminai/pull/2"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Migrated to Rust",
+        "url": "https://github.com/sefn/terminai/pull/2"
+      }
+    ],
     "rewrite_pr": {
       "title": "Migrated to Rust",
       "url": "https://github.com/sefn/terminai/pull/2"
@@ -8183,80 +8755,6 @@
     "exemplar": false
   },
   {
-    "name": "agent-team-composer",
-    "repo_url": "https://github.com/ford-at-home/agent-team-composer",
-    "description": null,
-    "stars": 0,
-    "forks": 0,
-    "open_issues": 41,
-    "open_prs": 0,
-    "original_language": "Python",
-    "rust_percentage": 0.0,
-    "confidence": 0.4,
-    "signals": [
-      {
-        "kind": "issue",
-        "detail": "issue titled about porting to Rust: Phase 5: Test Migration - Port Test Suite to Rust",
-        "url": "https://github.com/ford-at-home/agent-team-composer/issues/21"
-      },
-      {
-        "kind": "issue",
-        "detail": "issue titled about porting to Rust: Phase 3: Core Implementation - Port Business Logic to Rust",
-        "url": "https://github.com/ford-at-home/agent-team-composer/issues/19"
-      },
-      {
-        "kind": "issue",
-        "detail": "issue titled about migrating to Rust: [P1] Migrate State Persistence to Rust Service",
-        "url": "https://github.com/ford-at-home/agent-team-composer/issues/60"
-      },
-      {
-        "kind": "issue",
-        "detail": "issue titled about migrating to Rust: Epic: Migrate agent-team-composer from TypeScript to Rust",
-        "url": "https://github.com/ford-at-home/agent-team-composer/issues/15"
-      }
-    ],
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "source_url": "https://github.com/ford-at-home/agent-team-composer/issues/21",
-    "first_detected": "2026-07-08T18:49:30.578347+00:00",
-    "last_seen": "2026-07-08T18:59:53.967692+00:00",
-    "exemplar": false
-  },
-  {
-    "name": "zmx",
-    "repo_url": "https://github.com/amarbel-llc/zmx",
-    "description": "Session persistence for terminal processes",
-    "stars": 0,
-    "forks": 0,
-    "open_issues": 8,
-    "open_prs": 2,
-    "original_language": "Zig",
-    "rust_percentage": 0.0,
-    "confidence": 0.4,
-    "signals": [
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about rewriting in Rust: rewrite zmx in Rust, replacing ghostty-vt with a built-in VT engine",
-        "url": "https://github.com/amarbel-llc/zmx/pull/12"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about rewriting in Rust: Point to the posh Rust rewrite in the mosh fork",
-        "url": "https://github.com/amarbel-llc/zmx/pull/13"
-      }
-    ],
-    "rewrite_pr": {
-      "title": "rewrite zmx in Rust, replacing ghostty-vt with a built-in VT engine",
-      "url": "https://github.com/amarbel-llc/zmx/pull/12"
-    },
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "source_url": "https://github.com/amarbel-llc/zmx/pull/12",
-    "first_detected": "2026-07-08T18:54:36.552887+00:00",
-    "last_seen": "2026-07-08T19:04:59.473091+00:00",
-    "exemplar": false
-  },
-  {
     "name": "viernulvier-3",
     "repo_url": "https://github.com/SELab-2/viernulvier-3",
     "description": null,
@@ -8279,6 +8777,12 @@
         "url": "https://github.com/SELab-2/viernulvier-3/pull/409"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "ported backend to rust",
+        "url": "https://github.com/SELab-2/viernulvier-3/pull/409"
+      }
+    ],
     "rewrite_pr": {
       "title": "ported backend to rust",
       "url": "https://github.com/SELab-2/viernulvier-3/pull/409"
@@ -8288,40 +8792,6 @@
     "source_url": "https://github.com/SELab-2/viernulvier-3/pull/409",
     "first_detected": "2026-07-08T18:56:39.289756+00:00",
     "last_seen": "2026-07-08T19:03:00.540946+00:00",
-    "exemplar": false
-  },
-  {
-    "name": "claude-code-wechat-channel",
-    "repo_url": "https://github.com/sxhxliang/claude-code-wechat-channel",
-    "description": "Claude Code Channel plugin for WeChat — bridge WeChat messages into Claude Code sessions via the official ClawBot ilink API",
-    "stars": 0,
-    "forks": 0,
-    "open_issues": 0,
-    "open_prs": 2,
-    "original_language": "TypeScript",
-    "rust_percentage": 0.0,
-    "confidence": 0.4,
-    "signals": [
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about migrating to Rust: Migrate WeChat channel implementation to Rust",
-        "url": "https://github.com/sxhxliang/claude-code-wechat-channel/pull/1"
-      },
-      {
-        "kind": "pull-request",
-        "detail": "PR titled about migrating to Rust: Migrate WeChat channel implementation to Rust",
-        "url": "https://github.com/sxhxliang/claude-code-wechat-channel/pull/2"
-      }
-    ],
-    "rewrite_pr": {
-      "title": "Migrate WeChat channel implementation to Rust",
-      "url": "https://github.com/sxhxliang/claude-code-wechat-channel/pull/1"
-    },
-    "unsafe_percentage": null,
-    "project_kind": "replacement",
-    "source_url": "https://github.com/sxhxliang/claude-code-wechat-channel/pull/1",
-    "first_detected": "2026-07-08T18:56:41.113352+00:00",
-    "last_seen": "2026-07-08T19:04:50.611800+00:00",
     "exemplar": false
   },
   {
@@ -8563,6 +9033,12 @@
         "url": "https://github.com/code100x/chess/pull/202"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Migrate WS to Asynchronous Rust",
+        "url": "https://github.com/code100x/chess/pull/202"
+      }
+    ],
     "rewrite_pr": {
       "title": "Migrate WS to Asynchronous Rust",
       "url": "https://github.com/code100x/chess/pull/202"
@@ -8594,6 +9070,12 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about rewriting in Rust: Rewrite in Rust",
+        "url": "https://github.com/ReneSlijkhuis/gimp-wic-plugin/pull/2"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "Rewrite in Rust",
         "url": "https://github.com/ReneSlijkhuis/gimp-wic-plugin/pull/2"
       }
     ],
@@ -8631,6 +9113,12 @@
         "url": "https://github.com/nyiyui/hm_inference_example/pull/2"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": "Rewrite OCaml implementation in Rust",
+        "url": "https://github.com/nyiyui/hm_inference_example/pull/2"
+      }
+    ],
     "rewrite_pr": {
       "title": "Rewrite OCaml implementation in Rust",
       "url": "https://github.com/nyiyui/hm_inference_example/pull/2"
@@ -8665,6 +9153,12 @@
         "url": "https://github.com/mraerino/hacknow/pull/2"
       }
     ],
+    "rewrite_prs": [
+      {
+        "title": ":hammer: Rewrite it in Rust",
+        "url": "https://github.com/mraerino/hacknow/pull/2"
+      }
+    ],
     "rewrite_pr": {
       "title": ":hammer: Rewrite it in Rust",
       "url": "https://github.com/mraerino/hacknow/pull/2"
@@ -8696,6 +9190,12 @@
       {
         "kind": "pull-request",
         "detail": "PR titled about rewriting in Rust: feat!: rewrite it in rust",
+        "url": "https://github.com/maksim-ilin-f25/f/pull/21"
+      }
+    ],
+    "rewrite_prs": [
+      {
+        "title": "feat!: rewrite it in rust",
         "url": "https://github.com/maksim-ilin-f25/f/pull/21"
       }
     ],

@@ -36,6 +36,7 @@ impl Store {
                 forks             INTEGER NOT NULL DEFAULT 0,
                 rewrite_pr_title  TEXT,
                 rewrite_pr_url    TEXT,
+                rewrite_prs       TEXT NOT NULL DEFAULT '[]',
                 unsafe_percentage REAL,
                 project_kind      TEXT NOT NULL DEFAULT 'replacement',
                 named_origin      TEXT,
@@ -70,6 +71,7 @@ impl Store {
             "forks INTEGER NOT NULL DEFAULT 0",
             "rewrite_pr_title TEXT",
             "rewrite_pr_url TEXT",
+            "rewrite_prs TEXT NOT NULL DEFAULT '[]'",
             "unsafe_percentage REAL",
             "project_kind TEXT NOT NULL DEFAULT 'replacement'",
             "named_origin TEXT",
@@ -98,8 +100,18 @@ impl Store {
     /// Insert a project, or update it in place, preserving `first_detected`.
     pub fn upsert(&self, project: &Project) -> Result<()> {
         let signals_json = serde_json::to_string(&project.signals)?;
-        let rewrite_pr_title = project.rewrite_pr.as_ref().map(|r| r.title.as_str());
-        let rewrite_pr_url = project.rewrite_pr.as_ref().map(|r| r.url.as_str());
+        let rewrite_prs = if project.rewrite_prs.is_empty() {
+            project
+                .rewrite_pr
+                .clone()
+                .into_iter()
+                .collect::<Vec<_>>()
+        } else {
+            project.rewrite_prs.clone()
+        };
+        let rewrite_prs_json = serde_json::to_string(&rewrite_prs)?;
+        let rewrite_pr_title = rewrite_prs.first().map(|r| r.title.as_str());
+        let rewrite_pr_url = rewrite_prs.first().map(|r| r.url.as_str());
         self.conn
             .execute(
                 r#"
@@ -107,13 +119,13 @@ impl Store {
                     repo_url, name, description, stars, original_language,
                     rust_percentage, confidence, signals, source_url,
                     first_detected, last_seen, open_issues, open_prs, forks,
-                    rewrite_pr_title, rewrite_pr_url, unsafe_percentage, project_kind,
+                    rewrite_pr_title, rewrite_pr_url, rewrite_prs, unsafe_percentage, project_kind,
                     named_origin, lines_added, lines_removed, rewrite_velocity,
                     ai_assist_score, rewrite_duration_days, commit_count,
                     history_from_language, history_rust_before, history_rust_after,
                     transition_magnitude, total_commits_analyzed,
                     history_status, history_error, history_attempted_at, history_attempts
-                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34)
+                ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32, ?33, ?34, ?35)
                 ON CONFLICT(repo_url) DO UPDATE SET
                     name              = excluded.name,
                     description       = excluded.description,
@@ -129,6 +141,7 @@ impl Store {
                     forks             = excluded.forks,
                     rewrite_pr_title  = excluded.rewrite_pr_title,
                     rewrite_pr_url    = excluded.rewrite_pr_url,
+                    rewrite_prs       = excluded.rewrite_prs,
                     unsafe_percentage = COALESCE(excluded.unsafe_percentage, projects.unsafe_percentage),
                     project_kind      = excluded.project_kind,
                     named_origin      = excluded.named_origin,
@@ -165,6 +178,7 @@ impl Store {
                     project.forks,
                     rewrite_pr_title,
                     rewrite_pr_url,
+                    rewrite_prs_json,
                     project.unsafe_percentage,
                     project.project_kind,
                     project.named_origin,
@@ -248,7 +262,8 @@ impl Store {
                    ai_assist_score, rewrite_duration_days, commit_count,
                    history_from_language, history_rust_before, history_rust_after,
                    transition_magnitude, total_commits_analyzed,
-                   history_status, history_error, history_attempted_at, history_attempts
+                   history_status, history_error, history_attempted_at, history_attempts,
+                   rewrite_prs
             FROM projects
             WHERE repo_url = ?1
             "#,
@@ -271,7 +286,8 @@ impl Store {
                    ai_assist_score, rewrite_duration_days, commit_count,
                    history_from_language, history_rust_before, history_rust_after,
                    transition_magnitude, total_commits_analyzed,
-                   history_status, history_error, history_attempted_at, history_attempts
+                   history_status, history_error, history_attempted_at, history_attempts,
+                   rewrite_prs
             FROM projects
             ORDER BY confidence DESC, stars DESC
             "#,
@@ -290,10 +306,15 @@ impl Store {
         let signals: Vec<Signal> = serde_json::from_str(&signals_json).unwrap_or_default();
         let rewrite_pr_title: Option<String> = row.get(14)?;
         let rewrite_pr_url: Option<String> = row.get(15)?;
-        let rewrite_pr = match (rewrite_pr_title, rewrite_pr_url) {
-            (Some(title), Some(url)) => Some(RewritePr { title, url }),
-            _ => None,
-        };
+        let rewrite_prs_json: String = row.get::<_, Option<String>>(34)?.unwrap_or_else(|| "[]".into());
+        let mut rewrite_prs: Vec<RewritePr> =
+            serde_json::from_str(&rewrite_prs_json).unwrap_or_default();
+        if rewrite_prs.is_empty() {
+            if let (Some(title), Some(url)) = (rewrite_pr_title, rewrite_pr_url) {
+                rewrite_prs.push(RewritePr { title, url });
+            }
+        }
+        let rewrite_pr = rewrite_prs.first().cloned();
         Ok(Project {
             name: row.get(0)?,
             repo_url: row.get(1)?,
@@ -303,6 +324,7 @@ impl Store {
             rust_percentage: row.get(5)?,
             confidence: row.get(6)?,
             signals,
+            rewrite_prs,
             rewrite_pr,
             unsafe_percentage: row.get(16)?,
             project_kind: row.get(17)?,

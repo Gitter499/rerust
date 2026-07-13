@@ -443,9 +443,26 @@ fn strong_history(history: &HistoryAnalysis) -> bool {
             .is_some_and(crate::detect::commits::is_real_application_language)
 }
 
+/// True when a PR/issue signal discusses a real language migration (not a wishlist meme).
+fn has_migration_pr(candidate: &Candidate) -> bool {
+    candidate.signals.iter().any(|s| {
+        (s.kind == "pull-request" || s.kind == "issue")
+            && signal_is_migration_discussion(&s.detail)
+            && !{
+                let title = signal_title_body(&s.detail).to_lowercase();
+                title.contains("rewrite it in")
+                    || title.contains("rewritten in rust?")
+                    || title.contains("riir")
+            }
+    })
+}
+
 /// Classify under identity-continuity provenance.
 ///
-/// `Rewrite` ⟺ identity ∧ commit-proven rising-Rust history.
+/// `Rewrite` ⟺ identity ∧ (commit-proven rising-Rust history **or** a product
+/// migration PR). History alone can miss monorepo transitions (e.g. Bun); a
+/// merged "Rewrite X in Rust" / "migrate from Zig to Rust" PR on the product
+/// itself is enough when identity already holds.
 /// Everything else with migration/competitor framing → `Replacement`.
 /// API shims / bare bait → `Neither`.
 pub fn classify(
@@ -462,13 +479,14 @@ pub fn classify(
     let real_lang = real_displaced_language(analysis);
     let hist = strong_history(history);
     let migration = has_in_place || has_external || has_competitor;
+    let migration_pr = has_migration_pr(candidate);
 
     if rust_api(&text) || origin.as_deref().is_some_and(rust_api) {
         return ProjectKind::Neither;
     }
 
-    // Same product + proven X→Rust history.
-    if identity && hist {
+    // Same product + (proven history **or** product migration PR).
+    if identity && (hist || migration_pr) {
         return ProjectKind::Rewrite;
     }
 
@@ -482,7 +500,7 @@ pub fn classify(
     if hist && migration && !identity {
         return ProjectKind::Replacement;
     }
-    if identity && !hist && (has_in_place || has_external) {
+    if identity && !hist && !migration_pr && (has_in_place || has_external) {
         return ProjectKind::Replacement;
     }
     if (has_external || has_competitor) && (origin.is_some() || real_lang || has_competitor) {
@@ -794,32 +812,39 @@ mod tests {
     }
 
     #[test]
-    fn issue_on_product_repo_without_history_is_replacement() {
+    fn issue_on_product_repo_with_migration_pr_is_rewrite() {
         let mut c = named("oven-sh/bun", "Incredibly fast JavaScript runtime");
         c.signals.push(Signal {
             kind: "pull-request".into(),
             detail: "PR titled about rewriting in Rust: Rewrite Bun in Rust".into(),
-            url: "https://github.com/oven-sh/bun/pull/1".into(),
+            url: "https://github.com/oven-sh/bun/pull/30412".into(),
         });
         let a = analysis(70.0, Some("Zig"), true);
         assert!(has_identity_continuity(&c));
-        assert_eq!(classify(&c, &a, &no_history()), ProjectKind::Replacement);
-    }
-
-    #[test]
-    fn issue_on_product_repo_with_history_is_rewrite() {
-        let mut c = named("oven-sh/bun", "Incredibly fast JavaScript runtime");
-        c.signals.push(Signal {
-            kind: "pull-request".into(),
-            detail: "PR titled about rewriting in Rust: Rewrite Bun in Rust".into(),
-            url: "https://github.com/oven-sh/bun/pull/1".into(),
-        });
-        let a = analysis(70.0, Some("Zig"), true);
-        assert!(has_identity_continuity(&c));
+        // Product migration PR is enough even when commit history is weak/empty.
+        assert_eq!(classify(&c, &a, &no_history()), ProjectKind::Rewrite);
         assert_eq!(
             classify(&c, &a, &rising_rust_history("Zig")),
             ProjectKind::Rewrite
         );
+    }
+
+    #[test]
+    fn bun_multiple_migration_prs_still_rewrite() {
+        let mut c = named("oven-sh/bun", "Incredibly fast JavaScript runtime");
+        c.signals.push(Signal {
+            kind: "pull-request".into(),
+            detail: "PR titled about rewriting in Rust: Rewrite Bun in Rust".into(),
+            url: "https://github.com/oven-sh/bun/pull/30412".into(),
+        });
+        c.signals.push(Signal {
+            kind: "pull-request".into(),
+            detail: "PR titled about migrating to Rust: refactor: migrate from zig to rust"
+                .into(),
+            url: "https://github.com/oven-sh/bun/pull/30698".into(),
+        });
+        let a = analysis(70.0, Some("Zig"), true);
+        assert_eq!(classify(&c, &a, &no_history()), ProjectKind::Rewrite);
     }
 
     #[test]

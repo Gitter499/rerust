@@ -33,8 +33,7 @@ pub struct Candidate {
     pub signals: Vec<Signal>,
 }
 
-/// The pull request that best represents the actual rewrite work, surfaced as
-/// the marquee piece of evidence on a project card.
+/// Pull requests that represent rewrite / migration work (may be several).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RewritePr {
     pub title: String,
@@ -64,7 +63,10 @@ pub struct Project {
     /// Composite confidence that this is a genuine Rust rewrite, 0.0 - 1.0.
     pub confidence: f64,
     pub signals: Vec<Signal>,
-    /// The pull request that most likely performed the rewrite, if detected.
+    /// All rewrite/migration PRs discovered for this project (primary first).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rewrite_prs: Vec<RewritePr>,
+    /// Primary rewrite PR (first of [`Self::rewrite_prs`]) for older consumers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub rewrite_pr: Option<RewritePr>,
     /// Share of unsafe Rust (0.0 - 100.0), measured by cargo-geiger during an
