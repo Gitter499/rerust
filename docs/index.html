@@ -509,10 +509,12 @@
       height: auto; opacity: 1;
       border-top-color: #693845; margin-top: 10px; padding-top: 20px;
     }
-    /* Detail panel: hero summary, then two equal evidence columns, then PR. */
+    /* Detail panel: hero summary, then two equal evidence columns, then PR.
+       minmax(0,1fr) so large churn figures cannot inflate past 50% and shove
+       the rewrite-window column out of the card. */
     .detail-layout {
       display: grid; gap: 12px;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
       grid-template-areas:
         "hero hero"
         "churn activity"
@@ -536,7 +538,7 @@
     .detail-hero-conf strong { color: #fff3f5; font-size: 15px; font-weight: 700; }
     .detail-section {
       background: #3a1822; border: 1px solid #693845; border-radius: 2px;
-      padding: 14px 16px; min-height: 0;
+      padding: 14px 16px; min-width: 0; min-height: 0;
     }
     .detail-section-churn { grid-area: churn; }
     .detail-section-activity { grid-area: activity; }
@@ -548,10 +550,12 @@
     .detail-churn-values {
       display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline;
       font-size: 16px; font-weight: 700; line-height: 1.2;
+      overflow-wrap: anywhere; word-break: break-word;
     }
     .detail-churn-values .sep { color: #8b6b74; font-weight: 400; }
     .detail-activity-row {
       display: flex; flex-wrap: wrap; gap: 14px 22px;
+      min-width: 0;
     }
     .detail-activity-item {
       display: flex; flex-direction: column; gap: 2px;
@@ -692,7 +696,7 @@
         <p class="site-stats" aria-label="Dataset coverage">
           <strong>236</strong><span>projects tracked</span>
           <span class="sep" aria-hidden="true">&middot;</span>
-          <span>2026-07-13 18:04 UTC</span>
+          <span>2026-07-13 18:15 UTC</span>
         </p>
       </div>
     </div>
